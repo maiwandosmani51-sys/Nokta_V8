@@ -1,0 +1,13 @@
+{
+  "name": "Nokta Academy Management System",
+  "short_name": "Nokta Academy",
+  "description": "Modern school management system for Nokta Academy",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0ea5e9",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "categories": ["education", "productivity"],
+  "lang": "en-US"
+}
