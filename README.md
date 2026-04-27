@@ -110,3 +110,4 @@ Quick login for the current project:
 - Student: `student1@nokta.com` / `Student123!`
 - Parent/Family: `family1@nokta.com` / `Family123!`
 # nokta_upd_Ai_and_finance
+# nokta_upd_Ai_and_finance
