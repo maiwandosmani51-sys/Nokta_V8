@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { ArrowUpDown } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { PageHeader, SearchFilterBar } from '@/shared/components/Common';
 import { financeService } from '@/features/finance/services/financeService';
@@ -16,9 +17,11 @@ export function FinancePage() {
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState<ListSortField>('date');
   const [sortDirection, setSortDirection] = useState<ListSortDirection>('desc');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const { data: summary, isError } = useQuery({
-    queryKey: ['finance-summary'],
-    queryFn: financeService.summary
+    queryKey: ['finance-summary', startDate, endDate],
+    queryFn: () => financeService.summary({ startDate: startDate || undefined, endDate: endDate || undefined })
   });
 
   const { data: records, isLoading: recordsLoading } = useQuery({
@@ -57,7 +60,21 @@ export function FinancePage() {
     [locale, summary?.salaryPayoutTrend]
   );
 
+  const monthlyExpenses = useMemo(
+    () => (summary?.monthlyExpenses ?? []).map((item) => ({
+      ...item,
+      monthLabel: new Date(item.year, item.month - 1, 1).toLocaleDateString(locale, { month: 'short' })
+    })),
+    [locale, summary?.monthlyExpenses]
+  );
+
   const metricCards = [
+    {
+      key: 'net-profit',
+      label: t('finance.net_profit', { defaultValue: 'Net Profit' }),
+      value: summary?.netProfit?.toLocaleString?.() ?? '0',
+      accent: (summary?.netProfit ?? 0) >= 0 ? 'from-emerald-400/30 via-emerald-500/10 to-transparent' : 'from-rose-400/30 via-rose-500/10 to-transparent'
+    },
     {
       key: 'total-income',
       label: t('finance.total_income', { defaultValue: 'Total Income' }),
@@ -75,6 +92,12 @@ export function FinancePage() {
       label: t('payments.pending_payments', { defaultValue: 'Pending Payments' }),
       value: summary?.pendingPayments?.toLocaleString?.() ?? '0',
       accent: 'from-amber-400/30 via-amber-500/10 to-transparent'
+    },
+    {
+      key: 'total-expenses',
+      label: t('finance.total_expenses', { defaultValue: 'Total Expenses' }),
+      value: summary?.totalExpenses?.toLocaleString?.() ?? '0',
+      accent: 'from-rose-400/30 via-rose-500/10 to-transparent'
     },
     {
       key: 'salary-payments',
@@ -101,6 +124,22 @@ export function FinancePage() {
     <div className="space-y-6">
       <PageHeader title="common.finance" description="common.live_school_metrics" />
 
+      <Card className="p-4">
+        <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
+          <div>
+            <label className="mb-2 block text-sm text-slate-300">{t('common.start_date')}</label>
+            <Input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm text-slate-300">{t('common.end_date')}</label>
+            <Input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
+          </div>
+          <Button type="button" variant="outline" onClick={() => { setStartDate(''); setEndDate(''); }}>
+            {t('common.clear_filters', { defaultValue: 'Clear filters' })}
+          </Button>
+        </div>
+      </Card>
+
       {isError && <Card className="p-6 text-rose-200">{t('errors.unable_load_records', { defaultValue: 'Unable to load finance data.' })}</Card>}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -126,6 +165,21 @@ export function FinancePage() {
                 <YAxis stroke="#94a3b8" />
                 <Tooltip />
                 <Bar dataKey="revenue" fill="#22c55e" radius={[12, 12, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+
+        <Card className="p-6 transition duration-500 hover:-translate-y-1">
+          <p className="text-sm uppercase tracking-[0.3em] text-slate-400">{t('finance.monthly_expenses', { defaultValue: 'Monthly Expenses' })}</p>
+          <div className="mt-6 h-[320px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={monthlyExpenses}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)" />
+                <XAxis dataKey="monthLabel" stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" />
+                <Tooltip />
+                <Bar dataKey="total" fill="#ef4444" radius={[12, 12, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

@@ -6,6 +6,8 @@ import './AuditLog';
 import './Book';
 import './Branch';
 import './Class';
+import './Course';
+import './Curriculum';
 import './Enrollment';
 import './Exam';
 import './ExamResult';

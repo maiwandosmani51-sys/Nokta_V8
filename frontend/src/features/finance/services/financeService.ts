@@ -6,8 +6,13 @@ export interface FinanceSummary {
   pendingPayments: number;
   paidInvoices: number;
   teacherSalaryPayments: number;
+  fixedTeacherSalaries: number;
+  percentageTeacherSalaries: number;
+  totalExpenses: number;
+  netProfit: number;
   manualIncome: number;
   monthlyRevenue: Array<{ year: number; month: number; revenue: number }>;
+  monthlyExpenses: Array<{ year: number; month: number; total: number }>;
   monthlyPendingBalances: Array<{ year: number; month: number; total: number }>;
   salaryPayoutTrend: Array<{ year: number; month: number; total: number }>;
   branchIncome: Array<{ branch: string; total: number }>;
@@ -24,6 +29,6 @@ export interface FinanceRecord {
 }
 
 export const financeService = {
-  summary: () => api.get('/finance/summary').then((res) => res.data.data as FinanceSummary),
+  summary: (params?: { startDate?: string; endDate?: string }) => api.get('/finance/summary', { params }).then((res) => res.data.data as FinanceSummary),
   list: () => api.get('/finance', { params: { limit: 100 } }).then((res) => res.data.data as FinanceRecord[])
 };

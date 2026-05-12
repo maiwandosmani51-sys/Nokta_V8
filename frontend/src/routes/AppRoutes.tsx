@@ -39,6 +39,7 @@ const ExpensesPage = lazyNamedComponent(() => import('@/features/finance/pages/E
 const ReportsPage = lazyNamedComponent(() => import('@/features/reports/pages/ReportsPage'), 'ReportsPage');
 const RolesPage = lazyNamedComponent(() => import('@/features/roles/pages/RolesPage'), 'RolesPage');
 const RegisterPage = lazyNamedComponent(() => import('@/features/auth/pages/RegisterPage'), 'RegisterPage');
+const AIAssistantPage = lazyNamedComponent(() => import('@/features/ai/pages/AIAssistantPage'), 'AIAssistantPage');
 
 class AppErrorBoundary extends React.Component<{ children: React.ReactNode; fallback: React.ReactNode }, { hasError: boolean }> {
   constructor(props: { children: React.ReactNode; fallback: React.ReactNode }) {
@@ -157,6 +158,7 @@ function App() {
             <Route path="/expenses" element={<ProtectedRoute allowedRoles={['super_admin', 'admin', 'branch_manager', 'owner']}><ExpensesPage /></ProtectedRoute>} />
             <Route path="/reports" element={<ProtectedRoute allowedRoles={['super_admin', 'admin', 'branch_manager', 'owner']}><ReportsPage /></ProtectedRoute>} />
             <Route path="/roles" element={<ProtectedRoute allowedRoles={['super_admin', 'owner']}><RolesPage /></ProtectedRoute>} />
+            <Route path="/ai-assistant" element={<ProtectedRoute allowedRoles={['super_admin', 'admin', 'teacher', 'owner', 'branch_manager', 'system_automation']}><AIAssistantPage /></ProtectedRoute>} />
             {allModuleConfigs.filter((config) => !customModulePaths.has(config.path)).map((config) => (
               <Route
                 key={config.path}

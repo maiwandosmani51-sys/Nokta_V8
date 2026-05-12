@@ -26,8 +26,7 @@ function serializeStudent(student: any) {
     className: classRef?.name ?? classRef?.className ?? '',
     subjectName: subjectRef?.title ?? '',
     teacherName: teacherRef?.name ?? '',
-    classCode: classRef?.classCode ?? '',
-    profileImage: student?.profileImage?.replace('/uploads/', '') || null
+    classCode: classRef?.classCode ?? ''
   };
 }
 
@@ -115,7 +114,8 @@ router.post('/', requireAdmin, validate(registerStudentSchema), async (req: Requ
       ...req.body,
       classId,
       subjectId,
-      teacherId
+      teacherId,
+      createdBy: req.user?.userId ?? null
     });
     console.log('Saved student:', student);
     res.status(201).json(createResponse(student, 'Student registered successfully'));

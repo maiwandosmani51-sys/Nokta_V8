@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Upload } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -10,7 +10,6 @@ import { Select } from '@/components/ui/Select';
 import { authService } from '@/features/auth/services/authService';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
-import { getRoleFallbackImage } from '@/utils/profileImage';
 import { useTheme } from '@/app/providers/ThemeProvider';
 
 interface RegistrationOptionsResponse {
@@ -42,8 +41,6 @@ export function RegisterPage() {
     subjectId: subjectIdParam,
     teacherId: teacherIdParam
   });
-  const [profileImage, setProfileImage] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string>(getRoleFallbackImage('student'));
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -234,18 +231,6 @@ export function RegisterPage() {
     return nextErrors;
   };
 
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null;
-    setProfileImage(file);
-    if (!file) {
-      setPreviewUrl(getRoleFallbackImage('student'));
-      return;
-    }
-
-    const nextUrl = URL.createObjectURL(file);
-    setPreviewUrl(nextUrl);
-  };
-
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError('');
@@ -261,15 +246,7 @@ export function RegisterPage() {
         return;
       }
 
-      const payload = new FormData();
-      Object.entries(formData).forEach(([key, value]) => {
-        payload.append(key, value);
-      });
-      if (profileImage) {
-        payload.append('profileImage', profileImage);
-      }
-
-      await authService.registerStudent(payload);
+      await authService.registerStudent(formData);
       setSuccess(t('auth.register_success', { defaultValue: 'Student account created successfully. You can sign in now.' }));
       setFieldErrors({});
       setTimeout(() => navigate('/login'), 1200);
@@ -317,15 +294,6 @@ export function RegisterPage() {
                 })}
               </p>
 
-              <div className={`mt-8 flex flex-col items-center rounded-[2rem] border border-dashed p-6 text-center ${isDark ? 'border-white/10 bg-slate-950/70' : 'border-slate-300 bg-white/90'}`}>
-                <img src={previewUrl} alt={t('auth.avatar_preview', { defaultValue: 'Student avatar preview' })} className="h-32 w-32 rounded-full object-cover" />
-                <label className={`mt-4 inline-flex cursor-pointer items-center gap-2 rounded-full border px-4 py-2 text-sm transition ${isDark ? 'border-white/10 bg-white/10 text-slate-100 hover:bg-white/15' : 'border-slate-200 bg-slate-100 text-slate-800 hover:bg-slate-200'}`}>
-                  <Upload className="h-4 w-4" />
-                  {t('auth.upload_avatar', { defaultValue: 'Upload Avatar' })}
-                  <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-                </label>
-                <p className={`mt-3 text-xs ${helperTextClass}`}>{t('auth.avatar_requirements', { defaultValue: 'JPEG, PNG, WebP, or GIF up to 5MB' })}</p>
-              </div>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">

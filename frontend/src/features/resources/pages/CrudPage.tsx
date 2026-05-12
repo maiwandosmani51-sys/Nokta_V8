@@ -16,7 +16,6 @@ import { normalizeRole, type ModuleConfig, type ModuleField } from '@/features/r
 import { useAuthStore } from '@/store/authStore';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { PageHeader, SearchFilterBar, DataTable, FormModal } from '@/shared/components/Common';
-import { applyProfileImageFallback, getApiOrigin, resolveProfileImage } from '@/utils/profileImage';
 import { hasSortSupport, matchesSearch, sortCollection, type ListSortDirection, type ListSortField } from '@/utils/listSearchSort';
 
 interface CrudPageProps {
@@ -33,6 +32,7 @@ export const CrudPage = ({ config }: CrudPageProps) => {
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [formError, setFormError] = useState('');
   const [feedbackMessage, setFeedbackMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [aiRecommendation, setAiRecommendation] = useState<any>(null);
   const debouncedSearch = useDebounce(search, 300);
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -78,35 +78,7 @@ export const CrudPage = ({ config }: CrudPageProps) => {
   };
 
   const buildRequestData = (payload: Record<string, any>) => {
-    const hasFileField = config.fields.some((field) => field.type === 'file' && payload[field.name] instanceof File);
-
-    if (!hasFileField) {
-      return { payload, requestConfig: undefined };
-    }
-
-    const formPayload = new FormData();
-    Object.entries(payload).forEach(([key, value]) => {
-      if (Array.isArray(value)) {
-        value.forEach((item) => formPayload.append(key, item));
-        return;
-      }
-
-      if (value instanceof File) {
-        formPayload.append(key, value);
-        return;
-      }
-
-      formPayload.append(key, String(value));
-    });
-
-    return {
-      payload: formPayload,
-      requestConfig: {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      }
-    };
+    return { payload, requestConfig: undefined };
   };
 
   const formatErrorMessage = (error: any, fallback: string) => {
@@ -174,7 +146,7 @@ export const CrudPage = ({ config }: CrudPageProps) => {
   };
 
   const fetchData = async () => {
-    const response = await api.get(config.endpoint, { params: { search: debouncedSearch, limit: 100 } });
+    const response = await api.get(config.endpoint, { params: { search: debouncedSearch, limit: 100, lang: i18n.language } });
     return response.data.data;
   };
 
@@ -253,6 +225,20 @@ export const CrudPage = ({ config }: CrudPageProps) => {
     }
   });
 
+  const aiRecommendationMutation = useMutation({
+    mutationFn: async (item: any) => {
+      const id = item?._id ?? item?.id;
+      return api.post(`${config.endpoint}/${id}/ai-recommendation`, { lang: i18n.language }).then((response) => response.data.data);
+    },
+    onSuccess: (payload) => {
+      setAiRecommendation(payload);
+      setFeedbackMessage({ type: 'success', text: t('common.ai_recommendation_ready', { defaultValue: 'AI recommendation is ready.' }) });
+    },
+    onError: (error: any) => {
+      setFeedbackMessage({ type: 'error', text: formatErrorMessage(error, t('errors.unable_load_records')) });
+    }
+  });
+
   const fieldOptions = useSelectOptions(config.fields);
 
   const list = useMemo(() => (Array.isArray(data) ? data : []), [data]);
@@ -319,21 +305,21 @@ export const CrudPage = ({ config }: CrudPageProps) => {
 
   const prepareEditData = (item: any) => {
     const normalized = { ...item };
-    ['classId', 'subjectId', 'teacherId', 'student', 'exam', 'gradedBy', 'subject', 'class'].forEach((key) => {
+    ['classId', 'subjectId', 'teacherId', 'student', 'exam', 'gradedBy', 'subject', 'class', 'instructor'].forEach((key) => {
       const value = normalized[key];
       if (value && typeof value === 'object') {
         normalized[key] = value._id ?? value.id ?? '';
       }
     });
 
-    ['assignedTeachers', 'assignedSubjects', 'recipientRoles', 'recipientIds'].forEach((key) => {
+    ['assignedTeachers', 'assignedSubjects', 'assignedClasses', 'recipientRoles', 'recipientIds', 'subjects'].forEach((key) => {
       const value = normalized[key];
       if (Array.isArray(value)) {
         normalized[key] = value.map((item: any) => (item && typeof item === 'object' ? item._id ?? item.id ?? item.value ?? item.title ?? item.name ?? '' : item)).filter(Boolean);
       }
     });
 
-    ['attendanceDate', 'publishDate', 'date', 'registrationExpiryDate'].forEach((key) => {
+    ['attendanceDate', 'publishDate', 'expiresAt', 'date', 'registrationExpiryDate', 'startDate', 'endDate'].forEach((key) => {
       const value = normalized[key];
       if (value) {
         const parsedValue = new Date(value);
@@ -351,6 +337,15 @@ export const CrudPage = ({ config }: CrudPageProps) => {
 
     if (config.path === '/notifications') {
       normalized.description = normalized.description ?? normalized.message ?? '';
+      normalized.pinned = String(Boolean(normalized.pinned));
+    }
+
+    if (config.path === '/courses') {
+      normalized.title = normalized.titleText ?? normalized.title?.[i18n.language] ?? normalized.title?.en ?? '';
+      normalized.description = normalized.descriptionText ?? normalized.description?.[i18n.language] ?? normalized.description?.en ?? '';
+      normalized.requirements = normalized.requirementsText ?? normalized.requirements?.[i18n.language] ?? normalized.requirements?.en ?? '';
+      normalized.learningOutcomes = normalized.learningOutcomesText ?? normalized.learningOutcomes?.[i18n.language] ?? normalized.learningOutcomes?.en ?? '';
+      normalized.featured = String(Boolean(normalized.featured));
     }
 
     return normalized;
@@ -495,24 +490,6 @@ export const CrudPage = ({ config }: CrudPageProps) => {
       );
     }
 
-    if (field.type === 'file') {
-      return (
-        <div className="space-y-2">
-          <Input
-            type="file"
-            accept="image/*"
-            onChange={(event) => {
-              const nextFile = event.target.files?.[0] ?? null;
-              setFormData({ ...formData, [field.name]: nextFile });
-            }}
-          />
-          {editingItem?.[field.name] && typeof editingItem[field.name] === 'string' && (
-            <p className="text-xs text-slate-400">{editingItem[field.name]}</p>
-          )}
-        </div>
-      );
-    }
-
     return (
       <Input
         type={field.type}
@@ -533,23 +510,6 @@ export const CrudPage = ({ config }: CrudPageProps) => {
       const rawValue = item[field.key];
       const value = rawValue === null || rawValue === undefined || rawValue === '' ? notAvailable : rawValue;
 
-      if (config.path === '/users' && field.key === 'name') {
-        return (
-          <div className="flex items-center gap-3">
-            <img
-              src={resolveProfileImage(item.profileImage, item.role)}
-              alt={String(value)}
-              className="h-10 w-10 rounded-full object-cover"
-              onError={(event) => applyProfileImageFallback(event.currentTarget, item.role)}
-            />
-            <div>
-              <div>{String(value)}</div>
-              <div className="text-xs text-slate-400">{item.role ? t(`common.${item.role}`, { defaultValue: item.role }) : notAvailable}</div>
-            </div>
-          </div>
-        );
-      }
-
       return Array.isArray(value) ? value.join(', ') : String(value);
     }
   }));
@@ -561,6 +521,14 @@ export const CrudPage = ({ config }: CrudPageProps) => {
   }
   if (canDelete && !config.disableDelete) {
     rowActions.push({ label: t('common.delete'), onClick: handleDelete, variant: 'destructive', disabled: deleteMutation.isPending });
+  }
+  if (config.path === '/results') {
+    rowActions.push({
+      label: t('common.ai_recommendation', { defaultValue: 'AI Recommendation' }),
+      onClick: (item) => aiRecommendationMutation.mutate(item),
+      variant: 'outline',
+      disabled: aiRecommendationMutation.isPending
+    });
   }
 
   const renderCardActions = (item: any, extraActions?: ReactNode) => (
@@ -578,13 +546,7 @@ export const CrudPage = ({ config }: CrudPageProps) => {
     <Card key={student._id || student.id} className={`overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/90 p-5 shadow-xl ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
       <div className="space-y-5">
         <div className="flex flex-col items-center text-center">
-          <img
-            src={resolveProfileImage(student.profileImage, 'student')}
-            onError={(event) => applyProfileImageFallback(event.currentTarget, 'student')}
-            className="h-20 w-20 rounded-full object-cover ring-4 ring-white/10"
-            alt={t('common.profile')}
-          />
-          <div className="mt-4">
+          <div>
             <h3 className="text-lg font-semibold text-white">{student.firstName} {student.lastName}</h3>
             <p className="text-sm text-slate-400">{t('students.roll_no')}: {student.rollNo || notAvailable}</p>
           </div>
@@ -641,13 +603,7 @@ export const CrudPage = ({ config }: CrudPageProps) => {
       <Card key={teacher._id || teacher.id} className={`overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/90 p-5 shadow-xl ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
         <div className="space-y-5">
           <div className="flex flex-col items-center text-center">
-            <img
-              src={resolveProfileImage(teacher.profileImage, 'teacher')}
-              onError={(event) => applyProfileImageFallback(event.currentTarget, 'teacher')}
-              className="h-20 w-20 rounded-full object-cover ring-4 ring-white/10"
-              alt={t('common.profile')}
-            />
-            <div className="mt-4">
+            <div>
               <h3 className="text-lg font-semibold text-white">{teacher.name || [teacher.firstName, teacher.lastName].filter(Boolean).join(' ') || notAvailable}</h3>
               <p className="text-sm text-slate-400">{t('common.subject')}: {subjectText}</p>
             </div>
@@ -666,13 +622,7 @@ export const CrudPage = ({ config }: CrudPageProps) => {
     <Card key={account._id || account.id} className={`overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/90 p-5 shadow-xl ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
       <div className="space-y-5">
         <div className="flex flex-col items-center text-center">
-          <img
-            src={resolveProfileImage(account.profileImage, account.role)}
-            onError={(event) => applyProfileImageFallback(event.currentTarget, account.role)}
-            className="h-20 w-20 rounded-full object-cover ring-4 ring-white/10"
-            alt={account.name || t('common.profile')}
-          />
-          <div className="mt-4">
+          <div>
             <h3 className="text-lg font-semibold text-white">{account.name || notAvailable}</h3>
             <p className="text-sm text-slate-400">{account.role ? t(`common.${account.role}`, { defaultValue: account.role }) : notAvailable}</p>
           </div>
@@ -687,22 +637,8 @@ export const CrudPage = ({ config }: CrudPageProps) => {
     </Card>
   );
 
-  const renderNotificationCard = (notification: any) => {
-    const imageUrl = notification.image
-      ? notification.image.startsWith('http')
-        ? notification.image
-        : `${getApiOrigin()}${notification.image}`
-      : '';
-
-    return (
+  const renderNotificationCard = (notification: any) => (
       <Card key={notification._id || notification.id} className="overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/90 shadow-xl">
-        {imageUrl && (
-          <img
-            src={imageUrl}
-            alt={notification.title || t('common.notification')}
-            className="h-52 w-full object-cover"
-          />
-        )}
         <div className="space-y-4 p-5">
           <p className="text-xs uppercase tracking-[0.25em] text-sky-300">
             {notification.publishDate ? new Date(notification.publishDate).toLocaleDateString() : notAvailable}
@@ -724,8 +660,7 @@ export const CrudPage = ({ config }: CrudPageProps) => {
           )}
         </div>
       </Card>
-    );
-  };
+  );
 
   const renderEntityCards = () => {
     const renderers: Record<string, (item: any) => JSX.Element> = {
@@ -841,6 +776,43 @@ export const CrudPage = ({ config }: CrudPageProps) => {
           ) : (
             <div className="py-12 text-center text-slate-400">{t('common.no_records_found')}</div>
           )}
+        </Card>
+      )}
+
+      {aiRecommendation && (
+        <Card className="border border-sky-400/30 bg-sky-500/5 p-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div>
+              <p className="text-sm uppercase tracking-[0.25em] text-sky-300">{t('common.ai_recommendation')}</p>
+              <h2 className="mt-2 text-2xl font-semibold text-[var(--color-text-strong)]">
+                {aiRecommendation.recommendation?.title}
+              </h2>
+              <p className="mt-3 text-sm leading-7 text-[var(--color-text)]">
+                {aiRecommendation.recommendation?.message}
+              </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setAiRecommendation(null)}>
+              {t('common.close')}
+            </Button>
+          </div>
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <div>
+              <p className="text-sm font-semibold text-[var(--color-text-strong)]">{t('common.resources')}</p>
+              <ul className="mt-3 space-y-2 text-sm text-[var(--color-text)]">
+                {(aiRecommendation.recommendation?.resources ?? []).map((resource: string) => (
+                  <li key={resource} className="rounded-2xl bg-[var(--color-surface-strong)] px-4 py-3">{resource}</li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-[var(--color-text-strong)]">{t('common.study_plan', { defaultValue: 'Study Plan' })}</p>
+              <ul className="mt-3 space-y-2 text-sm text-[var(--color-text)]">
+                {(aiRecommendation.recommendation?.studyPlan ?? []).map((step: string) => (
+                  <li key={step} className="rounded-2xl bg-[var(--color-surface-strong)] px-4 py-3">{step}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
         </Card>
       )}
 

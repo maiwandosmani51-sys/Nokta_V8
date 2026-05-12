@@ -7,4 +7,13 @@
   "income": "عاید",
   "expenses": "لګښتونه",
   "total_expenses": "ټول لګښتونه"
+,
+  "net_profit": "خالصه ګټه",
+  "teacher_salary_payments": "د ښوونکو معاشونه",
+  "monthly_revenue": "میاشتنی عاید",
+  "monthly_expenses": "میاشتني لګښتونه",
+  "pending_balances": "پاتې بیلانسونه",
+  "salary_payout_trend": "د ښوونکو معاشونو بهیر",
+  "branch_income": "د څانګې عاید",
+  "recent_activity": "وروستي مالي فعالیتونه"
 }

@@ -207,9 +207,15 @@ export class StudentService {
         studentId: student._id,
         subjectId: data.subjectId,
         classId: data.classId,
+        branchId: data.branchId ?? null,
         feeAmount: data.feeAmount,
         percentage: teacher.customPercentage || teacher.percentageRate,
-        earnedAmount
+        earnedAmount,
+        source: 'registration',
+        month: registrationDate.getMonth() + 1,
+        year: registrationDate.getFullYear(),
+        status: 'approved',
+        createdBy: data.createdBy ?? null
       });
 
       await User.findByIdAndUpdate(data.teacherId, {

@@ -22,8 +22,7 @@ const studentSchema = createBaseSchema(
     remainingBalance: { type: Number, default: 0 },
     status: { type: String, enum: ['active', 'inactive', 'suspended', 'graduated'], default: 'active', index: true },
     familyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Family', required: true, index: true },
-    parentProfileId: { type: mongoose.Schema.Types.ObjectId, ref: 'Parent', default: null, index: true },
-    profileImage: { type: String, trim: true, default: '' }
+    parentProfileId: { type: mongoose.Schema.Types.ObjectId, ref: 'Parent', default: null, index: true }
   },
   { collection: 'students' }
 );

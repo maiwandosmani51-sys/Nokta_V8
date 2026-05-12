@@ -6,5 +6,13 @@
   "notes": "Notes",
   "income": "Income",
   "expenses": "Expenses",
-  "total_expenses": "Total Expenses"
+  "total_expenses": "Total Expenses",
+  "net_profit": "Net Profit",
+  "teacher_salary_payments": "Teacher Salary Payments",
+  "monthly_revenue": "Monthly Revenue",
+  "monthly_expenses": "Monthly Expenses",
+  "pending_balances": "Pending Balances",
+  "salary_payout_trend": "Teacher Salary Payout Trend",
+  "branch_income": "Branch Income",
+  "recent_activity": "Recent Finance Activity"
 }

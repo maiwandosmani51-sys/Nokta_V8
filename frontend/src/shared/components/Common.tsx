@@ -11,11 +11,11 @@ export function PageHeader({ title, description, actions }: { title: string; des
   const rtlClass = i18n.resolvedLanguage === 'en' ? 'md:flex-row' : 'md:flex-row-reverse';
 
   return (
-    <div className={`flex flex-col gap-4 rounded-[2rem] border border-slate-800/80 bg-slate-950/90 p-6 shadow-xl shadow-slate-950/20 md:items-end md:justify-between ${rtlClass}`}>
+    <div className={`glass-panel flex flex-col gap-4 rounded-[2rem] p-6 md:items-end md:justify-between ${rtlClass}`}>
       <div>
         <p className="text-sky-400 uppercase tracking-[0.3em] text-xs">{t(title)}</p>
-        <h1 className="text-3xl font-semibold text-white">{t(title)}</h1>
-        {description && <p className="mt-3 max-w-2xl text-slate-400">{t(description)}</p>}
+        <h1 className="text-3xl font-semibold text-[var(--color-text-strong)]">{t(title)}</h1>
+        {description && <p className="mt-3 max-w-2xl text-[var(--color-text-soft)]">{t(description)}</p>}
       </div>
       <div className="flex flex-wrap items-center gap-3">{actions}</div>
     </div>
@@ -91,28 +91,28 @@ export function DataTable<T>({
   };
 
   return (
-    <div className="w-full overflow-x-auto rounded-3xl border border-slate-800/80 bg-slate-900/70">
+    <div className="w-full overflow-x-auto rounded-3xl border bg-[var(--color-panel)]" style={{ borderColor: 'var(--color-border)' }}>
       <table className={`min-w-full w-full table-auto border-separate border-spacing-0 ${textAlign}`}>
         <thead>
           <tr>
             {columns.map((column) => (
-              <th key={column.key} className={`border-b border-slate-800/80 px-4 py-3 text-sm uppercase tracking-[0.2em] text-slate-400 break-words ${column.width ?? 'w-auto'}`}>
+              <th key={column.key} className={`border-b px-4 py-3 text-sm uppercase tracking-[0.2em] text-[var(--color-text-soft)] break-words ${column.width ?? 'w-auto'}`} style={{ borderColor: 'var(--color-border)' }}>
                 {column.label}
               </th>
             ))}
-            {actions && <th className="border-b border-slate-800/80 px-4 py-3 text-sm uppercase tracking-[0.2em] text-slate-400">{t('common.actions')}</th>}
+            {actions && <th className="border-b px-4 py-3 text-sm uppercase tracking-[0.2em] text-[var(--color-text-soft)]" style={{ borderColor: 'var(--color-border)' }}>{t('common.actions')}</th>}
           </tr>
         </thead>
         <tbody>
           {items.map((item, index) => (
-            <tr key={(item as { _id?: string; id?: string })._id ?? (item as { id?: string }).id ?? index} className="odd:bg-slate-950 even:bg-slate-900/80 last:border-b-0">
+            <tr key={(item as { _id?: string; id?: string })._id ?? (item as { id?: string }).id ?? index} className="odd:bg-[var(--color-row-odd)] even:bg-[var(--color-row-even)] last:border-b-0">
               {columns.map((column) => (
-                <td key={column.key} className="border-b border-slate-800/80 px-4 py-3 align-top text-sm text-slate-200 break-words">
+                <td key={column.key} className="border-b px-4 py-3 align-top text-sm text-[var(--color-text)] break-words" style={{ borderColor: 'var(--color-border)' }}>
                   {column.render ? column.render(item) : stringifyCell((item as Record<string, unknown>)[column.key])}
                 </td>
               ))}
               {actions && (
-                <td className="border-b border-slate-800/80 px-4 py-3 align-top text-sm text-slate-200">
+                <td className="border-b px-4 py-3 align-top text-sm text-[var(--color-text)]" style={{ borderColor: 'var(--color-border)' }}>
                   <div className="flex flex-wrap gap-2">
                     {actions.map((action) => (
                       <Button key={action.label} variant={action.variant ?? 'outline'} size="sm" onClick={() => action.onClick(item)} disabled={action.disabled}>
@@ -157,10 +157,11 @@ export function FormModal({
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.2 }}
-        className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl bg-slate-900 shadow-xl"
+        className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl border bg-[var(--color-panel)] shadow-xl"
+        style={{ borderColor: 'var(--color-border)' }}
       >
-        <div className={`flex items-center justify-between border-b border-slate-700 p-4 ${i18n.resolvedLanguage === 'en' ? '' : 'flex-row-reverse'}`}>
-          <h2 className="text-lg font-semibold text-slate-100">{title}</h2>
+        <div className={`flex items-center justify-between border-b p-4 ${i18n.resolvedLanguage === 'en' ? '' : 'flex-row-reverse'}`} style={{ borderColor: 'var(--color-border)' }}>
+          <h2 className="text-lg font-semibold text-[var(--color-text-strong)]">{title}</h2>
           <Button
             type="button"
             variant="outline"
@@ -178,7 +179,7 @@ export function FormModal({
           </form>
         </div>
 
-        <div className={`sticky bottom-0 flex gap-2 border-t border-slate-700 bg-slate-900 p-4 ${i18n.resolvedLanguage === 'en' ? 'justify-end' : 'justify-start'}`}>
+        <div className={`sticky bottom-0 flex gap-2 border-t bg-[var(--color-panel)] p-4 ${i18n.resolvedLanguage === 'en' ? 'justify-end' : 'justify-start'}`} style={{ borderColor: 'var(--color-border)' }}>
           <Button
             type="button"
             variant="outline"

@@ -10,7 +10,6 @@ interface UserProfile {
   role: Role;
   originalRole?: string;
   canonicalRole?: string;
-  profileImage?: string | null;
 }
 
 interface AuthState {

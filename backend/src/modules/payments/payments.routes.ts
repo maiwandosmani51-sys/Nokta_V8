@@ -6,6 +6,7 @@ import { createError, createResponse } from '../../helpers/response';
 import { paginationSchema } from '../../validators/pagination';
 import { Expense } from '../../models/Expense';
 import { Payment } from '../../models/Payment';
+import { SalaryTransaction } from '../../models/SalaryTransaction';
 import { Student } from '../../models/Student';
 import { User } from '../../models/User';
 
@@ -134,6 +135,46 @@ router.post('/', authorize(['super_admin', 'admin', 'branch_manager']), validate
       createdBy: req.user?.userId ?? null,
       notes: req.body.notes ?? ''
     });
+
+    const teacher = student.teacherId
+      ? await User.findOne({ _id: student.teacherId, role: 'teacher', isDeleted: false }).lean<any>()
+      : null;
+
+    if (teacher?.salaryType === 'percentage') {
+      const percentage = Number(teacher.customPercentage || teacher.percentageRate || 0);
+      const earnedAmount = (Number(req.body.amount || 0) * percentage) / 100;
+      if (earnedAmount > 0) {
+        await SalaryTransaction.findOneAndUpdate(
+          { paymentId: payment._id },
+          {
+            teacherId: teacher._id,
+            studentId: student._id,
+            subjectId: student.subjectId,
+            classId: student.classId,
+            branchId: payment.branchId ?? student.branchId ?? null,
+            paymentId: payment._id,
+            feeAmount: Number(req.body.amount),
+            percentage,
+            earnedAmount,
+            salaryType: 'percentage',
+            source: 'payment',
+            month: payment.paymentDate.getMonth() + 1,
+            year: payment.paymentDate.getFullYear(),
+            status: 'approved',
+            paymentReference: payment.referenceNumber || `INV-${String(payment._id).slice(-8).toUpperCase()}`,
+            createdBy: req.user?.userId ?? null
+          },
+          { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+
+        await User.findByIdAndUpdate(teacher._id, {
+          $inc: {
+            walletBalance: earnedAmount,
+            totalSalaryEarned: earnedAmount
+          }
+        });
+      }
+    }
 
     const populatedPayment = await Payment.findById(payment._id)
       .populate('studentId', 'firstName lastName studentId rollNo remainingBalance')

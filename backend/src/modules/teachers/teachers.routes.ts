@@ -120,8 +120,7 @@ function serializeTeacher(teacher: any) {
     displaySubject: assignedSubjects.length ? (assignedSubjects[0]?.title ?? assignedSubjects[0]) : '',
     salaryValue: teacher?.salaryType === 'percentage'
       ? Number(teacher?.percentageRate ?? teacher?.customPercentage ?? 0)
-      : Number(teacher?.fixedSalary ?? 0),
-    profileImage: teacher?.profileImage?.replace('/uploads/', '') || null
+      : Number(teacher?.fixedSalary ?? 0)
   };
 }
 

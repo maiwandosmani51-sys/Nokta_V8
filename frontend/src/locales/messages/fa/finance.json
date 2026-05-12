@@ -7,4 +7,13 @@
   "income": "درآمد",
   "expenses": "مصارف",
   "total_expenses": "کل مصارف"
+,
+  "net_profit": "مفاد خالص",
+  "teacher_salary_payments": "پرداخت معاش معلمان",
+  "monthly_revenue": "درآمد ماهانه",
+  "monthly_expenses": "مصارف ماهانه",
+  "pending_balances": "باقی‌مانده‌ها",
+  "salary_payout_trend": "روند پرداخت معاش معلمان",
+  "branch_income": "درآمد شعبه",
+  "recent_activity": "فعالیت مالی اخیر"
 }

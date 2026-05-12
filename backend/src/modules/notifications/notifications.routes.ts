@@ -6,7 +6,6 @@ import { ClassModel } from '../../models/Class';
 import { Subject } from '../../models/Subject';
 import { User } from '../../models/User';
 import { authenticate, authorize } from '../../middlewares/auth';
-import { notificationUpload } from '../../middlewares/upload';
 import { validate } from '../../middlewares/validate';
 import { createResponse, createError } from '../../helpers/response';
 
@@ -23,8 +22,12 @@ const notificationCreateSchema = Joi.object({
   classId: Joi.string().hex().length(24).allow('', null).optional(),
   subjectId: Joi.string().hex().length(24).allow('', null).optional(),
   teacherId: Joi.string().hex().length(24).allow('', null).optional(),
+  category: Joi.string().valid('general', 'holiday', 'emergency', 'class_notice', 'academic_reminder', 'event_update', 'exam_alert').optional(),
   publishDate: Joi.date().allow(null).optional(),
+  expiresAt: Joi.date().allow(null).optional(),
   publishStatus: Joi.string().valid('draft', 'published').optional(),
+  priority: Joi.string().valid('low', 'normal', 'high', 'urgent').optional(),
+  pinned: Joi.boolean().optional(),
   severity: Joi.string().valid('info', 'warning', 'critical').optional(),
   branchId: Joi.string().hex().length(24).allow('', null).optional(),
   recipientRoles: Joi.alternatives().try(
@@ -44,8 +47,12 @@ const notificationUpdateSchema = Joi.object({
   classId: Joi.string().hex().length(24).allow('', null).optional(),
   subjectId: Joi.string().hex().length(24).allow('', null).optional(),
   teacherId: Joi.string().hex().length(24).allow('', null).optional(),
+  category: Joi.string().valid('general', 'holiday', 'emergency', 'class_notice', 'academic_reminder', 'event_update', 'exam_alert').optional(),
   publishDate: Joi.date().allow(null).optional(),
+  expiresAt: Joi.date().allow(null).optional(),
   publishStatus: Joi.string().valid('draft', 'published').optional(),
+  priority: Joi.string().valid('low', 'normal', 'high', 'urgent').optional(),
+  pinned: Joi.boolean().optional(),
   severity: Joi.string().valid('info', 'warning', 'critical').optional(),
   branchId: Joi.string().hex().length(24).allow('', null).optional(),
   recipientRoles: Joi.alternatives().try(
@@ -114,8 +121,8 @@ function serializeNotification(notification: any) {
     teacherName: teacherRef?.name ?? '',
     description: notification?.description ?? notification?.message ?? '',
     message: notification?.description ?? notification?.message ?? '',
-    image: notification?.image ?? '',
     publishDate: notification?.publishDate ?? notification?.createdAt ?? null,
+    expiresAt: notification?.expiresAt ?? null,
     publishStatus: notification?.publishStatus ?? 'draft'
   };
 }
@@ -171,6 +178,10 @@ function buildAudienceFilter(req: any, publishedOnly = true) {
 
   if (publishedOnly) {
     filter.publishStatus = 'published';
+    filter.$and = [
+      ...(Array.isArray((filter as any).$and) ? (filter as any).$and : []),
+      { $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }] }
+    ];
   }
 
   return filter;
@@ -205,18 +216,6 @@ function applySearch(filter: any, search: string) {
     ...filter,
     ...searchFilter
   };
-}
-
-async function uploadSingleNotification(req: Request, res: Response) {
-  return new Promise<void>((resolve, reject) => {
-    notificationUpload.single('image')(req as any, res as any, (error: any) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve();
-    });
-  });
 }
 
 async function assertNotificationTargets(payload: { classId?: unknown; subjectId?: unknown; teacherId?: unknown }) {
@@ -287,12 +286,17 @@ function normalizeNotificationPayload(req: Request, validatedBody: Record<string
     title: String(validatedBody.title ?? existingNotification?.title ?? '').trim(),
     description,
     message: description,
-    image: req.file ? `/uploads/notifications/${req.file.filename}` : (existingNotification?.image ?? ''),
     classId: validatedBody.classId === '' ? null : (validatedBody.classId ?? existingNotification?.classId ?? null),
     subjectId: validatedBody.subjectId === '' ? null : (validatedBody.subjectId ?? existingNotification?.subjectId ?? null),
     teacherId: validatedBody.teacherId === '' ? null : (validatedBody.teacherId ?? existingNotification?.teacherId ?? null),
     publishDate,
+    expiresAt: validatedBody.expiresAt !== undefined
+      ? (validatedBody.expiresAt ? new Date(validatedBody.expiresAt) : null)
+      : existingNotification?.expiresAt ?? null,
     publishStatus,
+    category: validatedBody.category ?? existingNotification?.category ?? 'general',
+    priority: validatedBody.priority ?? existingNotification?.priority ?? 'normal',
+    pinned: validatedBody.pinned ?? existingNotification?.pinned ?? false,
     severity: validatedBody.severity ?? existingNotification?.severity ?? 'info',
     branchId: validatedBody.branchId === '' ? null : (validatedBody.branchId ?? existingNotification?.branchId ?? req.user?.branchId ?? null),
     recipientRoles,
@@ -305,7 +309,11 @@ router.get('/public', validate(notificationQuerySchema), async (req, res, next) 
     const page = Number(req.query.page || 1);
     const limit = Number(req.query.limit || 6);
     const search = String(req.query.search || '').trim();
-    const baseFilter = applySearch({ isDeleted: false, publishStatus: 'published' }, search);
+    const baseFilter = applySearch({
+      isDeleted: false,
+      publishStatus: 'published',
+      $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }]
+    }, search);
 
     const [notifications, total] = await Promise.all([
       Notification.find(baseFilter)
@@ -313,7 +321,7 @@ router.get('/public', validate(notificationQuerySchema), async (req, res, next) 
         .populate('subjectId', 'title code')
         .populate('teacherId', 'name email')
         .lean()
-        .sort({ publishDate: -1, createdAt: -1 })
+        .sort({ pinned: -1, priority: -1, publishDate: -1, createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit),
       Notification.countDocuments(baseFilter)
@@ -329,8 +337,6 @@ router.use(authenticate);
 
 router.post('/', authorize([...manageRoles]), async (req, res, next) => {
   try {
-    await uploadSingleNotification(req, res);
-
     const { error, value } = notificationCreateSchema.validate(req.body, { abortEarly: false, stripUnknown: true });
     if (error) {
       return res.status(400).json(createError(error.details.map((detail) => detail.message).join(', ')));
@@ -380,7 +386,7 @@ router.get('/', authorize([...readRoles]), validate(notificationQuerySchema), as
         .populate('subjectId', 'title code')
         .populate('teacherId', 'name email')
         .lean()
-        .sort({ publishDate: -1, createdAt: -1 })
+        .sort({ pinned: -1, priority: -1, publishDate: -1, createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit),
       Notification.countDocuments(filter)
@@ -417,8 +423,6 @@ router.get('/:id', authorize([...readRoles]), validate(idParamsSchema), async (r
 
 const updateNotificationHandler = async (req: Request, res: Response, next: any) => {
   try {
-    await uploadSingleNotification(req, res);
-
     const { error, value } = notificationUpdateSchema.validate(req.body, { abortEarly: false, stripUnknown: true });
     if (error) {
       return res.status(400).json(createError(error.details.map((detail) => detail.message).join(', ')));

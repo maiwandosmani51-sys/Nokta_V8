@@ -42,7 +42,6 @@ export class AuthService {
       originalRole: user.role,
       canonicalRole: normalizeRole(user.role) ?? user.role,
       branchId: user.branchId ?? null,
-      profileImage: user?.profileImage?.replace('/uploads/', '') || null,
       mustChangePassword: Boolean(user.mustChangePassword),
       status: user.status ?? 'active',
       emailVerified: Boolean(user.emailVerifiedAt),

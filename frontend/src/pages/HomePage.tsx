@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState, type FormEvent } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -7,14 +7,12 @@ import { Input } from '@/components/ui/Input';
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { api } from '@/services/apiClient';
-import { getApiOrigin } from '@/utils/profileImage';
 
 interface HomeNotification {
   _id: string;
   title: string;
   description: string;
   message?: string;
-  image?: string;
   publishDate?: string;
   classId?: string | null;
   subjectId?: string | null;
@@ -24,6 +22,18 @@ interface HomeNotification {
   teacherName?: string;
 }
 
+interface HomeCourse {
+  _id: string;
+  titleText: string;
+  descriptionText?: string;
+  duration?: string;
+  fee?: number;
+  instructorName?: string;
+  enrollmentStatus?: string;
+  imageUrl?: string;
+  academicCategory?: string;
+}
+
 export const HomePage = memo(function HomePage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -31,10 +41,26 @@ export const HomePage = memo(function HomePage() {
   const [contactEmail, setContactEmail] = useState('');
   const [contactMessage, setContactMessage] = useState('');
   const [contactStatus, setContactStatus] = useState('');
+  const [activeHeroImage, setActiveHeroImage] = useState(0);
+
+  const heroImages = useMemo(
+    () => [
+      'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=1800&q=80',
+      'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=1800&q=80',
+      'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1800&q=80'
+    ],
+    []
+  );
 
   const { data: announcements } = useQuery({
     queryKey: ['home-notifications'],
     queryFn: () => api.get('/notifications/public', { params: { limit: 4 } }).then((res) => res.data.data as HomeNotification[]),
+    staleTime: 60_000
+  });
+
+  const { data: courses } = useQuery({
+    queryKey: ['home-courses', i18n.resolvedLanguage],
+    queryFn: () => api.get('/courses/public/home', { params: { limit: 6, lang: i18n.resolvedLanguage || 'en' } }).then((res) => res.data.data as HomeCourse[]),
     staleTime: 60_000
   });
 
@@ -48,11 +74,19 @@ export const HomePage = memo(function HomePage() {
     () => [
       { id: 'home', label: t('nav_home') },
       { id: 'about', label: t('nav_about') },
+      { id: 'programs', label: t('common.courses') },
       { id: 'services', label: t('nav_services') },
       { id: 'contact', label: t('nav_contact') }
     ],
     [t]
   );
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setActiveHeroImage((current) => (current + 1) % heroImages.length);
+    }, 7000);
+    return () => window.clearInterval(intervalId);
+  }, [heroImages.length]);
 
   const services = useMemo(
     () => [
@@ -132,16 +166,31 @@ export const HomePage = memo(function HomePage() {
       </header>
 
       <main className="pt-24">
-        <section id="home" className="relative overflow-hidden px-4 pb-20 pt-24 sm:px-6 lg:px-8">
-          <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-slate-950 via-slate-950/90 to-transparent" />
-          <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+        <section id="home" className="relative min-h-[calc(100vh-6rem)] overflow-hidden px-4 pb-20 pt-24 sm:px-6 lg:px-8">
+          <div className="absolute inset-0">
+            {heroImages.map((image, index) => (
+              <img
+                key={image}
+                src={image}
+                alt=""
+                loading={index === 0 ? 'eager' : 'lazy'}
+                className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-1000 ${index === activeHeroImage ? 'opacity-100' : 'opacity-0'}`}
+                onError={(event) => {
+                  event.currentTarget.style.display = 'none';
+                }}
+              />
+            ))}
+            <div className="absolute inset-0 bg-slate-950/78" />
+            <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-slate-950 to-transparent" />
+          </div>
+          <div className="relative mx-auto grid max-w-7xl gap-12 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
             <div className="space-y-8">
               <div className="space-y-4">
                 <p className="text-sky-400 uppercase tracking-[0.3em] text-xs">{t('home_intro_label')}</p>
                 <h1 className="max-w-3xl text-5xl font-bold leading-tight text-white sm:text-6xl">
                   {t('hero_title')}
                 </h1>
-                <p className="max-w-2xl text-lg leading-8 text-slate-400 sm:text-xl">
+                <p className="max-w-2xl text-lg leading-8 text-slate-200 sm:text-xl">
                   {t('hero_description')}
                 </p>
               </div>
@@ -172,7 +221,7 @@ export const HomePage = memo(function HomePage() {
               </div>
             </div>
 
-            <div className="rounded-[2rem] border border-slate-800/90 bg-slate-900/80 p-8 shadow-2xl shadow-slate-950/30">
+            <div className="rounded-[2rem] border border-slate-700/80 bg-slate-950/82 p-8 shadow-2xl shadow-slate-950/40 backdrop-blur-xl">
               <div className="space-y-4">
                 <p className="text-sm uppercase tracking-[0.3em] text-sky-400">{t('home_login_card')}</p>
                 <h2 className="text-3xl font-semibold text-white">{t('home_login_card')}</h2>
@@ -182,6 +231,17 @@ export const HomePage = memo(function HomePage() {
                 <Button className="w-full py-4" onClick={() => navigate('/login')}>
                   {t('hero_cta_login')}
                 </Button>
+              </div>
+              <div className="mt-8 flex gap-2">
+                {heroImages.map((image, index) => (
+                  <button
+                    key={image}
+                    type="button"
+                    aria-label={t('common.select_slide', { defaultValue: 'Select slide' })}
+                    onClick={() => setActiveHeroImage(index)}
+                    className={`h-2 rounded-full transition-all ${index === activeHeroImage ? 'w-10 bg-sky-300' : 'w-2 bg-slate-500'}`}
+                  />
+                ))}
               </div>
             </div>
           </div>
@@ -205,6 +265,54 @@ export const HomePage = memo(function HomePage() {
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+
+        <section id="programs" className="border-t border-slate-800/80 px-4 py-20 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-7xl">
+            <div className="max-w-3xl space-y-4">
+              <p className="text-sky-400 uppercase tracking-[0.3em] text-xs">{t('common.educational_programs')}</p>
+              <h2 className="text-4xl font-semibold text-white">{t('common.educational_programs_title')}</h2>
+              <p className="text-lg leading-8 text-slate-400">{t('common.educational_programs_description')}</p>
+            </div>
+
+            <div className="mt-12 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+              {(courses ?? []).map((course) => (
+                <article key={course._id} className="overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-900/85 shadow-2xl shadow-slate-950/20 transition duration-500 hover:-translate-y-1 hover:border-sky-500/50">
+                  <div className="aspect-[16/9] bg-slate-800">
+                    {course.imageUrl ? (
+                      <img src={course.imageUrl} alt={course.titleText} className="h-full w-full object-cover" loading="lazy" />
+                    ) : (
+                      <div className="grid h-full place-items-center bg-gradient-to-br from-slate-800 via-slate-900 to-sky-950 text-sky-200">
+                        <span className="text-sm uppercase tracking-[0.3em]">{t('common.course')}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-4 p-6">
+                    <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.2em] text-sky-300">
+                      <span>{course.academicCategory || t('common.general')}</span>
+                      <span>{course.enrollmentStatus ? t(`common.${course.enrollmentStatus}`, { defaultValue: course.enrollmentStatus }) : ''}</span>
+                    </div>
+                    <h3 className="text-2xl font-semibold text-white">{course.titleText}</h3>
+                    <p className="text-sm leading-7 text-slate-400">{course.descriptionText || t('common.not_available')}</p>
+                    <div className="grid gap-3 text-sm text-slate-300 sm:grid-cols-2">
+                      <p>{t('common.duration')}: {course.duration || t('common.not_available')}</p>
+                      <p>{t('common.fee')}: {course.fee ?? 0}</p>
+                      <p className="sm:col-span-2">{t('common.instructor')}: {course.instructorName || t('common.not_available')}</p>
+                    </div>
+                    <Button size="sm" onClick={() => navigate(`/register?sourceType=course&sourceTitle=${encodeURIComponent(course.titleText)}`)}>
+                      {t('common.register')}
+                    </Button>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            {!(courses ?? []).length && (
+              <div className="mt-12 rounded-3xl border border-dashed border-slate-800/80 bg-slate-900/60 p-8 text-center text-slate-400">
+                {t('common.no_records_found')}
+              </div>
+            )}
           </div>
         </section>
 
@@ -240,13 +348,6 @@ export const HomePage = memo(function HomePage() {
             <div className="mt-12 grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
               {(announcements ?? []).map((announcement) => (
                 <article key={announcement._id} className="overflow-hidden rounded-[2rem] border border-slate-800/80 bg-slate-900/85 shadow-2xl shadow-slate-950/20 transition duration-500 hover:-translate-y-1 hover:border-sky-500/50">
-                  {announcement.image && (
-                    <img
-                      src={announcement.image.startsWith('http') ? announcement.image : `${getApiOrigin()}${announcement.image}`}
-                      alt={announcement.title}
-                      className="h-48 w-full object-cover"
-                    />
-                  )}
                   <div className="space-y-4 p-6">
                     <p className="text-xs uppercase tracking-[0.25em] text-sky-300">
                       {announcement.publishDate ? new Date(announcement.publishDate).toLocaleDateString(locale) : ''}

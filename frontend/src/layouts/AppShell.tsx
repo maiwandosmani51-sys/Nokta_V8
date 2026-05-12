@@ -1,15 +1,16 @@
 import { useMemo, useState, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'framer-motion';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/locales/i18n';
 import { useAuthStore } from '@/store/authStore';
 import { getMenuForRole, getRouteLabel } from '@/features/resources/config/modules';
-import { LogOut, Menu, UserCircle, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Bell, LogOut, Menu, UserCircle, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { designSystem } from '@/constants/designSystem';
-import { applyProfileImageFallback, getRoleFallbackImage, resolveProfileImage } from '@/utils/profileImage';
+import { api } from '@/services/apiClient';
 
 const sidebarIconClasses: Record<string, string> = {
   '/dashboard': 'text-primary',
@@ -37,6 +38,16 @@ export function AppShell() {
   const user = useAuthStore((state) => state.user);
   const [collapsed, setCollapsed] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const canAccessNotifications = Boolean(
+    user?.role && ['super_admin', 'admin', 'teacher', 'student', 'parent', 'owner', 'branch_manager', 'system_automation'].includes(user.role)
+  );
+  const { data: unreadCountData } = useQuery({
+    queryKey: ['notifications-unread-count', user?.role],
+    queryFn: () => api.get('/notifications/unread-count').then((res) => res.data.data as { unreadCount: number }),
+    enabled: canAccessNotifications,
+    refetchInterval: 30000
+  });
+  const unreadCount = unreadCountData?.unreadCount ?? 0;
 
   const menu = useMemo(
     () =>
@@ -213,13 +224,21 @@ export function AppShell() {
               <div className="flex flex-wrap items-center gap-3">
                 <ThemeToggle />
                 <LanguageSwitcher />
+                <button
+                  type="button"
+                  onClick={() => navigate('/notifications')}
+                  aria-label={t('common.notifications')}
+                  className="relative inline-flex h-11 w-11 items-center justify-center rounded-3xl border border-white/10 bg-white/10 text-slate-100 transition duration-300 hover:bg-white/15"
+                >
+                  {unreadCount > 0 && (
+                    <span className="absolute -end-2 -top-2 min-w-[1.35rem] rounded-full bg-rose-500 px-1.5 py-0.5 text-center text-[10px] font-semibold leading-none text-white">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                  <Bell size={18} />
+                </button>
                 <div className="flex items-center gap-3 rounded-[28px] border border-white/10 bg-white/10 px-4 py-3 text-sm text-slate-100">
-                  <img
-                    src={resolveProfileImage(user?.profileImage, user?.role)}
-                    alt={user?.name ?? t('common.guest')}
-                    className="h-10 w-10 rounded-full object-cover"
-                    onError={(event) => applyProfileImageFallback(event.currentTarget, user?.role)}
-                  />
+                  <UserCircle className="h-10 w-10 text-slate-300" />
                   <div>
                     <div className="font-semibold text-white">{user?.name ?? t('common.guest')}</div>
                     <div className="text-xs text-slate-400">{user?.role ? t(`common.${user.role}`) : t('common.no_role')}</div>

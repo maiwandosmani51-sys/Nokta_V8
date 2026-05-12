@@ -70,7 +70,6 @@ const userSchema = createBaseSchema(
     paidAmount: { type: Number, default: 0 },
     remainingBalance: { type: Number, default: 0 },
     active: { type: Boolean, default: true, index: true },
-    profileImage: { type: String, trim: true, default: '' },
     emailVerifiedAt: { type: Date, default: null },
     phoneVerifiedAt: { type: Date, default: null },
     passwordChangedAt: { type: Date, default: Date.now },

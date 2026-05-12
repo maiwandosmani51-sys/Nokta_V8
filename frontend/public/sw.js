@@ -22,10 +22,7 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  if (
-    event.request.url.includes('/api/') ||
-    event.request.url.includes('/uploads/')
-  ) {
+  if (event.request.url.includes('/api/')) {
     return fetch(event.request);
   }
 

@@ -86,8 +86,7 @@ router.get('/', validate(paginationSchema), async (req, res, next) => {
       User.find(filter).select('-password').lean().skip((page - 1) * limit).limit(limit),
       User.countDocuments(filter)
     ]);
-    const normalizedUsers = users.map(user => ({ ...user, profileImage: user?.profileImage?.replace('/uploads/', '') || null }));
-    res.json(createResponse(normalizedUsers, '', { page, limit, total }));
+    res.json(createResponse(users, '', { page, limit, total }));
   } catch (error) {
     next(error);
   }
@@ -111,8 +110,7 @@ router.get('/:id', validate(idParamsSchema), async (req, res, next) => {
     if (!requireSuperAdmin(req, res)) return;
     const user: any = await User.findOne({ _id: req.params.id, isDeleted: false }).select('-password').lean();
     if (!user) return res.status(404).json(createError('User not found'));
-    const normalizedUser = { ...user, profileImage: user?.profileImage?.replace('/uploads/', '') || null };
-    res.json(createResponse(normalizedUser));
+    res.json(createResponse(user));
   } catch (error) {
     next(error);
   }
@@ -142,8 +140,7 @@ const updateUserHandler = async (req: Request, res: any, next: any) => {
       { new: true, runValidators: true }
     ).select('-password').lean();
     if (!user) return res.status(404).json(createError('User not found'));
-    const normalizedUser = { ...user, profileImage: user?.profileImage?.replace('/uploads/', '') || null };
-    res.json(createResponse(normalizedUser, 'User updated'));
+    res.json(createResponse(user, 'User updated'));
   } catch (error) {
     next(error);
   }

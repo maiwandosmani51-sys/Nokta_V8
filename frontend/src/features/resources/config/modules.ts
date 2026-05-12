@@ -3,6 +3,7 @@ import {
   Activity,
   Bell,
   BookOpen,
+  BrainCircuit,
   Building2,
   CalendarCheck,
   ClipboardList,
@@ -220,6 +221,8 @@ export const modulesConfig: Record<string, ModuleConfig> = {
       { name: 'email', label: 'common.email', type: 'email', required: true },
       { name: 'password', label: 'common.password', type: 'password', required: true, hiddenOnEdit: true },
       { name: 'phone', label: 'students.phone', type: 'text', required: true },
+      { name: 'whatsapp', label: 'common.whatsapp', type: 'text' },
+      { name: 'address', label: 'common.address', type: 'textarea' },
       { name: 'gender', label: 'students.gender', type: 'select', required: true, options: [
         { value: 'male', label: 'students.gender_male' },
         { value: 'female', label: 'students.gender_female' },
@@ -229,7 +232,14 @@ export const modulesConfig: Record<string, ModuleConfig> = {
         { value: 'fixed', label: 'students.fixed' },
         { value: 'percentage', label: 'students.percentage' }
       ] },
-      { name: 'salaryValue', label: 'students.salary_value', type: 'number', required: true }
+      { name: 'salaryValue', label: 'students.salary_value', type: 'number', required: true },
+      { name: 'assignedSubjects', label: 'common.subjects', type: 'select', multiple: true, optionsEndpoint: '/subjects', optionLabelKey: 'title', optionValueKey: '_id' },
+      { name: 'assignedClasses', label: 'common.classes', type: 'select', multiple: true, optionsEndpoint: '/classes', optionLabelKey: 'className', optionValueKey: '_id' },
+      { name: 'status', label: 'common.status', type: 'select', options: [
+        { value: 'active', label: 'common.active' },
+        { value: 'inactive', label: 'common.inactive' },
+        { value: 'suspended', label: 'common.suspended' }
+      ] }
     ],
     listFields: [
       { key: 'name', label: 'common.name' },
@@ -302,6 +312,69 @@ export const modulesConfig: Record<string, ModuleConfig> = {
       create: ['super_admin', 'admin', 'branch_manager'],
       edit: ['super_admin', 'admin', 'branch_manager'],
       delete: ['super_admin']
+    }
+  },
+  courses: {
+    path: '/courses',
+    title: 'common.courses',
+    entity: 'common.course',
+    endpoint: '/courses',
+    description: 'common.courses_description',
+    fields: [
+      { name: 'title', label: 'common.title', type: 'text', required: true },
+      { name: 'slug', label: 'common.slug', type: 'text', required: true, hiddenOnEdit: true },
+      { name: 'description', label: 'common.description', type: 'textarea' },
+      { name: 'duration', label: 'common.duration', type: 'text' },
+      { name: 'fee', label: 'common.fee', type: 'number' },
+      { name: 'instructor', label: 'common.instructor', type: 'select', optionsEndpoint: '/teachers', optionLabelKey: 'name', optionValueKey: '_id' },
+      { name: 'subjects', label: 'common.subjects', type: 'select', multiple: true, optionsEndpoint: '/subjects', optionLabelKey: 'title', optionValueKey: '_id' },
+      { name: 'schedule', label: 'common.schedule', type: 'text' },
+      { name: 'capacity', label: 'common.capacity', type: 'number' },
+      { name: 'enrollmentStatus', label: 'common.enrollment_status', type: 'select', options: [
+        { value: 'open', label: 'common.open' },
+        { value: 'closed', label: 'common.closed' },
+        { value: 'waitlist', label: 'common.waitlist' }
+      ] },
+      { name: 'imageUrl', label: 'common.image_url', type: 'text' },
+      { name: 'academicCategory', label: 'common.academic_category', type: 'text' },
+      { name: 'startDate', label: 'common.start_date', type: 'date' },
+      { name: 'endDate', label: 'common.end_date', type: 'date' },
+      { name: 'requirements', label: 'common.requirements', type: 'textarea' },
+      { name: 'learningOutcomes', label: 'common.learning_outcomes', type: 'textarea' },
+      { name: 'language', label: 'common.language', type: 'select', options: [
+        { value: 'multilingual', label: 'common.multilingual' },
+        { value: 'en', label: 'common.english' },
+        { value: 'fa', label: 'common.dari' },
+        { value: 'ps', label: 'common.pashto' }
+      ] },
+      { name: 'visibility', label: 'common.visibility', type: 'select', options: [
+        { value: 'public', label: 'common.public' },
+        { value: 'private', label: 'common.private' }
+      ] },
+      { name: 'status', label: 'common.status', type: 'select', options: [
+        { value: 'draft', label: 'common.draft' },
+        { value: 'active', label: 'common.active' },
+        { value: 'archived', label: 'common.archived' }
+      ] },
+      { name: 'featured', label: 'common.featured', type: 'select', options: [
+        { value: 'true', label: 'common.yes' },
+        { value: 'false', label: 'common.no' }
+      ] }
+    ],
+    listFields: [
+      { key: 'titleText', label: 'common.title' },
+      { key: 'instructorName', label: 'common.instructor' },
+      { key: 'duration', label: 'common.duration' },
+      { key: 'fee', label: 'common.fee' },
+      { key: 'enrollmentStatus', label: 'common.enrollment_status' },
+      { key: 'status', label: 'common.status' }
+    ],
+    searchField: 'titleText',
+    permissions: {
+      view: coreRoles,
+      create: ['super_admin', 'admin', 'branch_manager', 'owner'],
+      edit: ['super_admin', 'admin', 'branch_manager', 'owner'],
+      delete: ['super_admin', 'admin', 'owner']
     }
   },
   attendance: {
@@ -388,7 +461,8 @@ export const modulesConfig: Record<string, ModuleConfig> = {
       { key: 'className', label: 'exams.class' },
       { key: 'teacherName', label: 'students.teacher' },
       { key: 'score', label: 'results.score' },
-      { key: 'grade', label: 'results.grade' }
+      { key: 'grade', label: 'results.grade' },
+      { key: 'aiRecommendationMessage', label: 'common.ai_recommendation' }
     ],
     permissions: {
       view: ['super_admin', 'admin', 'branch_manager', 'teacher', 'student', 'parent', 'owner'],
@@ -537,8 +611,27 @@ export const modulesConfig: Record<string, ModuleConfig> = {
       { name: 'classId', label: 'students.class', type: 'select', optionsEndpoint: '/classes', optionLabelKey: 'className', optionValueKey: '_id' },
       { name: 'subjectId', label: 'students.subject', type: 'select', optionsEndpoint: '/subjects', optionLabelKey: 'title', optionValueKey: '_id' },
       { name: 'teacherId', label: 'students.teacher', type: 'select', optionsEndpoint: '/teachers', optionLabelKey: 'name', optionValueKey: '_id' },
-      { name: 'image', label: 'notifications.image', type: 'file' },
+      { name: 'category', label: 'common.category', type: 'select', options: [
+        { value: 'general', label: 'common.general' },
+        { value: 'holiday', label: 'common.holiday' },
+        { value: 'emergency', label: 'common.emergency' },
+        { value: 'class_notice', label: 'common.class_notice' },
+        { value: 'academic_reminder', label: 'common.academic_reminder' },
+        { value: 'event_update', label: 'common.event_update' },
+        { value: 'exam_alert', label: 'common.exam_alert' }
+      ] },
       { name: 'publishDate', label: 'common.date', type: 'date' },
+      { name: 'expiresAt', label: 'common.expiration_date', type: 'date' },
+      { name: 'priority', label: 'common.priority', type: 'select', options: [
+        { value: 'low', label: 'common.low' },
+        { value: 'normal', label: 'common.normal' },
+        { value: 'high', label: 'common.high' },
+        { value: 'urgent', label: 'common.urgent' }
+      ] },
+      { name: 'pinned', label: 'common.pinned', type: 'select', options: [
+        { value: 'true', label: 'common.yes' },
+        { value: 'false', label: 'common.no' }
+      ] },
       { name: 'publishStatus', label: 'notifications.publish_status', type: 'select', required: true, options: [
         { value: 'draft', label: 'notifications.status_draft' },
         { value: 'published', label: 'notifications.status_published' }
@@ -551,6 +644,8 @@ export const modulesConfig: Record<string, ModuleConfig> = {
       { key: 'className', label: 'students.class' },
       { key: 'subjectName', label: 'students.subject' },
       { key: 'teacherName', label: 'students.teacher' },
+      { key: 'category', label: 'common.category' },
+      { key: 'priority', label: 'common.priority' },
       { key: 'publishDate', label: 'common.date' },
       { key: 'publishStatus', label: 'common.status' }
     ],
@@ -559,6 +654,58 @@ export const modulesConfig: Record<string, ModuleConfig> = {
       create: ['super_admin', 'admin', 'branch_manager', 'teacher', 'owner'],
       edit: ['super_admin', 'admin', 'branch_manager', 'teacher', 'owner'],
       delete: ['super_admin', 'admin', 'branch_manager', 'owner']
+    }
+  },
+  curriculum: {
+    path: '/curriculum',
+    title: 'common.curriculum',
+    entity: 'common.curriculum_item',
+    endpoint: '/curriculum',
+    description: 'common.curriculum_description',
+    fields: [
+      { name: 'title', label: 'common.title', type: 'text', required: true },
+      { name: 'code', label: 'common.code', type: 'text', required: true },
+      { name: 'level', label: 'common.level', type: 'text' },
+      { name: 'academicYear', label: 'common.academic_year', type: 'text' },
+      { name: 'term', label: 'common.term', type: 'select', options: [
+        { value: 'annual', label: 'common.annual' },
+        { value: 'semester_1', label: 'common.semester_1' },
+        { value: 'semester_2', label: 'common.semester_2' },
+        { value: 'quarter_1', label: 'common.quarter_1' },
+        { value: 'quarter_2', label: 'common.quarter_2' },
+        { value: 'quarter_3', label: 'common.quarter_3' },
+        { value: 'quarter_4', label: 'common.quarter_4' }
+      ] },
+      { name: 'classId', label: 'students.class', type: 'select', optionsEndpoint: '/classes', optionLabelKey: 'className', optionValueKey: '_id' },
+      { name: 'subjectId', label: 'students.subject', type: 'select', optionsEndpoint: '/subjects', optionLabelKey: 'title', optionValueKey: '_id' },
+      { name: 'weeklyHours', label: 'common.weekly_hours', type: 'number' },
+      { name: 'durationWeeks', label: 'common.duration_weeks', type: 'number' },
+      { name: 'objectives', label: 'common.objectives', type: 'textarea', required: true },
+      { name: 'learningOutcomes', label: 'common.learning_outcomes', type: 'textarea', required: true },
+      { name: 'standards', label: 'common.standards', type: 'textarea' },
+      { name: 'scopeSequence', label: 'common.scope_sequence', type: 'textarea' },
+      { name: 'assessmentPlan', label: 'common.assessment_plan', type: 'textarea' },
+      { name: 'resources', label: 'common.resources', type: 'textarea' },
+      { name: 'status', label: 'common.status', type: 'select', options: [
+        { value: 'draft', label: 'common.draft' },
+        { value: 'approved', label: 'common.approved' },
+        { value: 'archived', label: 'common.archived' }
+      ] }
+    ],
+    listFields: [
+      { key: 'title', label: 'common.title' },
+      { key: 'code', label: 'common.code' },
+      { key: 'className', label: 'students.class' },
+      { key: 'subjectName', label: 'students.subject' },
+      { key: 'academicYear', label: 'common.academic_year' },
+      { key: 'status', label: 'common.status' }
+    ],
+    searchField: 'title',
+    permissions: {
+      view: coreRoles,
+      create: ['super_admin', 'admin', 'branch_manager'],
+      edit: ['super_admin', 'admin', 'branch_manager'],
+      delete: ['super_admin', 'admin']
     }
   },
   audit: {
@@ -611,6 +758,7 @@ const menuConfig: Record<EnterpriseRole, MenuItem[]> = {
     { path: '/students', label: 'common.students', icon: GraduationCap, roles: coreRoles },
     { path: '/teachers', label: 'common.teachers', icon: UserCheck, roles: coreRoles },
     { path: '/classes', label: 'common.classes', icon: Layers, roles: coreRoles },
+    { path: '/courses', label: 'common.courses', icon: BookOpen, roles: coreRoles },
     { path: '/subjects', label: 'common.subjects', icon: BookOpen, roles: coreRoles },
     { path: '/attendance', label: 'common.attendance', icon: ClipboardList, roles: coreRoles },
     { path: '/exams', label: 'common.exams', icon: CalendarCheck, roles: coreRoles },
@@ -620,6 +768,8 @@ const menuConfig: Record<EnterpriseRole, MenuItem[]> = {
     { path: '/expenses', label: 'common.expenses', icon: CreditCard, roles: coreRoles },
     { path: '/reports', label: 'common.reports', icon: Activity, roles: coreRoles },
     { path: '/notifications', label: 'common.notifications', icon: Bell, roles: coreRoles },
+    { path: '/curriculum', label: 'common.curriculum', icon: BookOpen, roles: coreRoles },
+    { path: '/ai-assistant', label: 'common.ai_assistant', icon: BrainCircuit, roles: ['super_admin', 'admin', 'teacher', 'owner', 'branch_manager', 'system_automation'] },
     { path: '/audit', label: 'common.audit_logs', icon: ShieldCheck, roles: coreRoles },
     { path: '/roles', label: 'common.roles', icon: ShieldCheck, roles: coreRoles }
   ],
@@ -629,6 +779,7 @@ const menuConfig: Record<EnterpriseRole, MenuItem[]> = {
     { path: '/students', label: 'common.students', icon: GraduationCap, roles: coreRoles },
     { path: '/teachers', label: 'common.teachers', icon: UserCheck, roles: coreRoles },
     { path: '/classes', label: 'common.classes', icon: Layers, roles: coreRoles },
+    { path: '/courses', label: 'common.courses', icon: BookOpen, roles: coreRoles },
     { path: '/subjects', label: 'common.subjects', icon: BookOpen, roles: coreRoles },
     { path: '/attendance', label: 'common.attendance', icon: ClipboardList, roles: coreRoles },
     { path: '/exams', label: 'common.exams', icon: CalendarCheck, roles: coreRoles },
@@ -637,35 +788,44 @@ const menuConfig: Record<EnterpriseRole, MenuItem[]> = {
     { path: '/finance', label: 'common.finance', icon: DollarSign, roles: coreRoles },
     { path: '/expenses', label: 'common.expenses', icon: CreditCard, roles: coreRoles },
     { path: '/reports', label: 'common.reports', icon: Activity, roles: coreRoles },
-    { path: '/notifications', label: 'common.notifications', icon: Bell, roles: coreRoles }
+    { path: '/notifications', label: 'common.notifications', icon: Bell, roles: coreRoles },
+    { path: '/curriculum', label: 'common.curriculum', icon: BookOpen, roles: coreRoles },
+    { path: '/ai-assistant', label: 'common.ai_assistant', icon: BrainCircuit, roles: ['super_admin', 'admin', 'teacher', 'branch_manager'] }
   ],
   teacher: [
     { path: '/dashboard', label: 'common.dashboard', icon: Home, roles: coreRoles },
     { path: '/students', label: 'common.students', icon: GraduationCap, roles: coreRoles },
     { path: '/classes', label: 'common.classes', icon: Layers, roles: coreRoles },
+    { path: '/courses', label: 'common.courses', icon: BookOpen, roles: coreRoles },
     { path: '/subjects', label: 'common.subjects', icon: BookOpen, roles: coreRoles },
     { path: '/attendance', label: 'common.attendance', icon: ClipboardList, roles: coreRoles },
     { path: '/exams', label: 'common.exams', icon: CalendarCheck, roles: coreRoles },
     { path: '/results', label: 'common.results', icon: FileText, roles: coreRoles },
-    { path: '/notifications', label: 'common.notifications', icon: Bell, roles: coreRoles }
+    { path: '/notifications', label: 'common.notifications', icon: Bell, roles: coreRoles },
+    { path: '/curriculum', label: 'common.curriculum', icon: BookOpen, roles: coreRoles },
+    { path: '/ai-assistant', label: 'common.ai_assistant', icon: BrainCircuit, roles: ['teacher'] }
   ],
   student: [
     { path: '/dashboard', label: 'common.dashboard', icon: Home, roles: coreRoles },
     { path: '/classes', label: 'common.classes', icon: Layers, roles: coreRoles },
+    { path: '/courses', label: 'common.courses', icon: BookOpen, roles: coreRoles },
     { path: '/subjects', label: 'common.subjects', icon: BookOpen, roles: coreRoles },
     { path: '/attendance', label: 'common.attendance', icon: ClipboardList, roles: coreRoles },
     { path: '/results', label: 'common.results', icon: FileText, roles: coreRoles },
     { path: '/payments', label: 'common.payments', icon: Receipt, roles: coreRoles },
-    { path: '/notifications', label: 'common.notifications', icon: Bell, roles: coreRoles }
+    { path: '/notifications', label: 'common.notifications', icon: Bell, roles: coreRoles },
+    { path: '/curriculum', label: 'common.curriculum', icon: BookOpen, roles: coreRoles }
   ],
   parent: [
     { path: '/dashboard', label: 'common.dashboard', icon: Home, roles: coreRoles },
     { path: '/families', label: 'common.families', icon: Users, roles: coreRoles },
     { path: '/classes', label: 'common.classes', icon: Layers, roles: coreRoles },
+    { path: '/courses', label: 'common.courses', icon: BookOpen, roles: coreRoles },
     { path: '/attendance', label: 'common.attendance', icon: ClipboardList, roles: coreRoles },
     { path: '/results', label: 'common.results', icon: FileText, roles: coreRoles },
     { path: '/payments', label: 'common.payments', icon: Receipt, roles: coreRoles },
-    { path: '/notifications', label: 'common.notifications', icon: Bell, roles: coreRoles }
+    { path: '/notifications', label: 'common.notifications', icon: Bell, roles: coreRoles },
+    { path: '/curriculum', label: 'common.curriculum', icon: BookOpen, roles: coreRoles }
   ],
   owner: [
     { path: '/dashboard', label: 'common.dashboard', icon: Home, roles: coreRoles },
@@ -675,7 +835,10 @@ const menuConfig: Record<EnterpriseRole, MenuItem[]> = {
     { path: '/reports', label: 'common.reports', icon: Activity, roles: coreRoles },
     { path: '/audit', label: 'common.audit_logs', icon: ShieldCheck, roles: coreRoles },
     { path: '/roles', label: 'common.roles', icon: ShieldCheck, roles: coreRoles },
-    { path: '/notifications', label: 'common.notifications', icon: Bell, roles: coreRoles }
+    { path: '/notifications', label: 'common.notifications', icon: Bell, roles: coreRoles },
+    { path: '/courses', label: 'common.courses', icon: BookOpen, roles: coreRoles },
+    { path: '/curriculum', label: 'common.curriculum', icon: BookOpen, roles: coreRoles },
+    { path: '/ai-assistant', label: 'common.ai_assistant', icon: BrainCircuit, roles: ['owner'] }
   ],
   branch_manager: [
     { path: '/dashboard', label: 'common.dashboard', icon: Home, roles: coreRoles },
@@ -683,16 +846,22 @@ const menuConfig: Record<EnterpriseRole, MenuItem[]> = {
     { path: '/students', label: 'common.students', icon: GraduationCap, roles: coreRoles },
     { path: '/teachers', label: 'common.teachers', icon: UserCheck, roles: coreRoles },
     { path: '/classes', label: 'common.classes', icon: Layers, roles: coreRoles },
+    { path: '/courses', label: 'common.courses', icon: BookOpen, roles: coreRoles },
     { path: '/subjects', label: 'common.subjects', icon: BookOpen, roles: coreRoles },
     { path: '/attendance', label: 'common.attendance', icon: ClipboardList, roles: coreRoles },
     { path: '/payments', label: 'common.payments', icon: Receipt, roles: coreRoles },
     { path: '/reports', label: 'common.reports', icon: Activity, roles: coreRoles },
-    { path: '/notifications', label: 'common.notifications', icon: Bell, roles: coreRoles }
+    { path: '/notifications', label: 'common.notifications', icon: Bell, roles: coreRoles },
+    { path: '/curriculum', label: 'common.curriculum', icon: BookOpen, roles: coreRoles },
+    { path: '/ai-assistant', label: 'common.ai_assistant', icon: BrainCircuit, roles: ['branch_manager'] }
   ],
   system_automation: [
     { path: '/dashboard', label: 'common.dashboard', icon: Home, roles: coreRoles },
     { path: '/reports', label: 'common.reports', icon: Activity, roles: coreRoles },
-    { path: '/notifications', label: 'common.notifications', icon: Bell, roles: coreRoles }
+    { path: '/notifications', label: 'common.notifications', icon: Bell, roles: coreRoles },
+    { path: '/courses', label: 'common.courses', icon: BookOpen, roles: coreRoles },
+    { path: '/curriculum', label: 'common.curriculum', icon: BookOpen, roles: coreRoles },
+    { path: '/ai-assistant', label: 'common.ai_assistant', icon: BrainCircuit, roles: ['system_automation'] }
   ]
 };
 

@@ -1,10 +1,13 @@
 import { Router } from 'express';
 import Joi from 'joi';
 import { Branch } from '../../models/Branch';
+import { Expense } from '../../models/Expense';
 import { FinanceEntry } from '../../models/FinanceEntry';
 import { Payment } from '../../models/Payment';
 import { Salary } from '../../models/Salary';
+import { SalaryTransaction } from '../../models/SalaryTransaction';
 import { Student } from '../../models/Student';
+import { User } from '../../models/User';
 import { authenticate, authorize } from '../../middlewares/auth';
 import { validate } from '../../middlewares/validate';
 import { createResponse } from '../../helpers/response';
@@ -32,18 +35,37 @@ function buildMonths(start: Date, count: number) {
 
 router.use(authenticate, authorize(['super_admin', 'admin', 'accountant', 'branch_manager', 'owner']));
 
-router.get('/summary', async (_req, res, next) => {
+function buildDateFilter(query: any, field: string) {
+  const range: Record<string, Date> = {};
+  if (query.startDate) range.$gte = new Date(String(query.startDate));
+  if (query.endDate) {
+    const end = new Date(String(query.endDate));
+    end.setHours(23, 59, 59, 999);
+    range.$lte = end;
+  }
+  return Object.keys(range).length ? { [field]: range } : {};
+}
+
+router.get('/summary', async (req, res, next) => {
   try {
     const now = new Date();
     const startDate = new Date(now.getFullYear(), now.getMonth() - 5, 1, 0, 0, 0, 0);
+    const paymentDateFilter = buildDateFilter(req.query, 'paymentDate');
+    const entryDateFilter = buildDateFilter(req.query, 'date');
+    const expenseDateFilter = buildDateFilter(req.query, 'date');
+    const salaryDateFilter = buildDateFilter(req.query, 'createdAt');
 
-    const [paymentsTotal, manualIncomeTotal, pendingPayments, paidInvoices, salaryPayments, monthlyPayments, monthlyManualIncome, monthlyPendingBalancesRaw, salaryTrendRaw, branches] = await Promise.all([
+    const [paymentsTotal, manualIncomeTotal, expenseTotals, pendingPayments, paidInvoices, salaryPayments, salaryTransactionTotals, fixedTeacherTotals, monthlyPayments, monthlyManualIncome, monthlyExpensesRaw, monthlySalaryTransactionsRaw, monthlyPendingBalancesRaw, salaryTrendRaw, branches] = await Promise.all([
       Payment.aggregate([
-        { $match: { isDeleted: false } },
+        { $match: { isDeleted: false, ...paymentDateFilter } },
         { $group: { _id: null, total: { $sum: '$amount' } } }
       ]),
       FinanceEntry.aggregate([
-        { $match: { isDeleted: false } },
+        { $match: { isDeleted: false, ...entryDateFilter } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]),
+      Expense.aggregate([
+        { $match: { isDeleted: false, category: { $ne: 'income' }, ...expenseDateFilter } },
         { $group: { _id: null, total: { $sum: '$amount' } } }
       ]),
       Student.aggregate([
@@ -52,8 +74,16 @@ router.get('/summary', async (_req, res, next) => {
       ]),
       Payment.countDocuments({ isDeleted: false }),
       Salary.aggregate([
-        { $match: { isDeleted: false } },
+        { $match: { isDeleted: false, ...salaryDateFilter } },
         { $group: { _id: null, total: { $sum: '$netAmount' } } }
+      ]),
+      SalaryTransaction.aggregate([
+        { $match: { isDeleted: false, ...buildDateFilter(req.query, 'createdAt') } },
+        { $group: { _id: null, total: { $sum: '$earnedAmount' } } }
+      ]),
+      User.aggregate([
+        { $match: { role: 'teacher', isDeleted: false, active: true, salaryType: 'fixed' } },
+        { $group: { _id: null, total: { $sum: '$fixedSalary' } } }
       ]),
       Payment.aggregate([
         { $match: { isDeleted: false, paymentDate: { $gte: startDate } } },
@@ -77,6 +107,32 @@ router.get('/summary', async (_req, res, next) => {
               month: { $month: '$date' }
             },
             total: { $sum: '$amount' }
+          }
+        },
+        { $sort: { '_id.year': 1, '_id.month': 1 } }
+      ]),
+      Expense.aggregate([
+        { $match: { isDeleted: false, category: { $ne: 'income' }, date: { $gte: startDate } } },
+        {
+          $group: {
+            _id: {
+              year: { $year: '$date' },
+              month: { $month: '$date' }
+            },
+            total: { $sum: '$amount' }
+          }
+        },
+        { $sort: { '_id.year': 1, '_id.month': 1 } }
+      ]),
+      SalaryTransaction.aggregate([
+        { $match: { isDeleted: false, createdAt: { $gte: startDate } } },
+        {
+          $group: {
+            _id: {
+              year: { $year: '$createdAt' },
+              month: { $month: '$createdAt' }
+            },
+            total: { $sum: '$earnedAmount' }
           }
         },
         { $sort: { '_id.year': 1, '_id.month': 1 } }
@@ -126,7 +182,17 @@ router.get('/summary', async (_req, res, next) => {
     const salaryPayoutTrend = months.map((month) => ({
       year: month.year,
       month: month.month,
-      total: salaryTrendRaw.find((entry: any) => entry._id.year === month.year && entry._id.month === month.month)?.total ?? 0
+      total:
+        (salaryTrendRaw.find((entry: any) => entry._id.year === month.year && entry._id.month === month.month)?.total ?? 0) +
+        (monthlySalaryTransactionsRaw.find((entry: any) => entry._id.year === month.year && entry._id.month === month.month)?.total ?? 0)
+    }));
+    const monthlyExpenses = months.map((month) => ({
+      year: month.year,
+      month: month.month,
+      total:
+        (monthlyExpensesRaw.find((entry: any) => entry._id.year === month.year && entry._id.month === month.month)?.total ?? 0) +
+        (salaryTrendRaw.find((entry: any) => entry._id.year === month.year && entry._id.month === month.month)?.total ?? 0) +
+        (monthlySalaryTransactionsRaw.find((entry: any) => entry._id.year === month.year && entry._id.month === month.month)?.total ?? 0)
     }));
 
     const paymentsByBranch = await Payment.aggregate([
@@ -139,17 +205,32 @@ router.get('/summary', async (_req, res, next) => {
       total: paymentsByBranch.find((entry: any) => String(entry._id) === String(branch._id))?.total ?? 0
     }));
 
+    const studentPayments = paymentsTotal[0]?.total ?? 0;
+    const manualIncome = manualIncomeTotal[0]?.total ?? 0;
+    const totalIncome = studentPayments + manualIncome;
+    const totalExpenses = expenseTotals[0]?.total ?? 0;
+    const salaryRecords = salaryPayments[0]?.total ?? 0;
+    const percentageTeacherSalaries = salaryTransactionTotals[0]?.total ?? 0;
+    const fixedTeacherSalaries = fixedTeacherTotals[0]?.total ?? 0;
+    const teacherSalaryPayments = salaryRecords + percentageTeacherSalaries + fixedTeacherSalaries;
+    const netProfit = totalIncome - totalExpenses - teacherSalaryPayments;
+
     res.json(createResponse({
-      totalIncome: (paymentsTotal[0]?.total ?? 0) + (manualIncomeTotal[0]?.total ?? 0),
+      totalIncome,
       studentPayments: paymentsTotal[0]?.total ?? 0,
+      totalExpenses,
+      teacherSalaryPayments,
+      fixedTeacherSalaries,
+      percentageTeacherSalaries,
+      netProfit,
       monthlyRevenue,
+      monthlyExpenses,
       monthlyPendingBalances,
       pendingPayments: pendingPayments[0]?.total ?? 0,
       paidInvoices,
       branchIncome,
-      teacherSalaryPayments: salaryPayments[0]?.total ?? 0,
       salaryPayoutTrend,
-      manualIncome: manualIncomeTotal[0]?.total ?? 0
+      manualIncome
     }));
   } catch (error) {
     next(error);
@@ -175,11 +256,12 @@ router.get('/', validate(paginationSchema), async (req, res, next) => {
     const page = Number(req.query.page || 1);
     const limit = Number(req.query.limit || 20);
 
-    const [payments, financeEntries] = await Promise.all([
+    const [payments, financeEntries, expenses] = await Promise.all([
       Payment.find({ isDeleted: false })
         .populate('studentId', 'firstName lastName studentId')
         .lean(),
-      FinanceEntry.find({ isDeleted: false }).lean()
+      FinanceEntry.find({ isDeleted: false }).lean(),
+      Expense.find({ isDeleted: false, category: { $ne: 'income' } }).lean()
     ]);
 
     const items = [
@@ -200,6 +282,15 @@ router.get('/', validate(paginationSchema), async (req, res, next) => {
         category: entry.category,
         date: entry.date,
         source: entry.source,
+        notes: entry.notes ?? ''
+      })),
+      ...expenses.map((entry: any) => ({
+        id: entry._id,
+        title: entry.title,
+        amount: -Math.abs(entry.amount),
+        category: entry.category,
+        date: entry.date,
+        source: 'expense',
         notes: entry.notes ?? ''
       }))
     ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());

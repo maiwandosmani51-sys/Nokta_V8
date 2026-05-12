@@ -5,7 +5,6 @@ import { authLimiter } from '../../middlewares/rateLimiter';
 import { createResponse, createError } from '../../helpers/response';
 import { authenticate } from '../../middlewares/auth';
 import { AuthService } from '../../services/authService';
-import { profileUpload } from '../../middlewares/upload';
 import { ClassModel } from '../../models/Class';
 import { Subject } from '../../models/Subject';
 import { Student } from '../../models/Student';
@@ -81,18 +80,6 @@ const publicStudentRegistrationSchema = Joi.object({
   subjectId: Joi.string().hex().length(24).required(),
   teacherId: Joi.string().hex().length(24).required()
 });
-
-function uploadSingleProfile(req: Request, res: any) {
-  return new Promise<void>((resolve, reject) => {
-    profileUpload.single('profileImage')(req as any, res, (error: any) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve();
-    });
-  });
-}
 
 async function generateStudentRollNo() {
   const count = await Student.countDocuments();
@@ -209,8 +196,6 @@ router.get('/register/options', async (req, res) => {
 
 router.post('/register/student', authLimiter, async (req, res) => {
   try {
-    await uploadSingleProfile(req, res);
-
     const { error, value } = publicStudentRegistrationSchema.validate(req.body, { abortEarly: false, stripUnknown: true });
     if (error) {
       return res.status(400).json(createError(error.details.map((detail) => detail.message).join(', ')));
@@ -266,7 +251,6 @@ router.post('/register/student', authLimiter, async (req, res) => {
     });
 
     const studentId = generateStudentId();
-    const profileImage = req.file ? `/uploads/profile/${req.file.filename}` : '';
     const student = await Student.create({
       rollNo: await generateStudentRollNo(),
       studentId,
@@ -283,8 +267,7 @@ router.post('/register/student', authLimiter, async (req, res) => {
       feeAmount: totalFeeAmount,
       paidAmount: 0,
       remainingBalance: totalFeeAmount,
-      familyId: family._id,
-      profileImage
+      familyId: family._id
     });
 
     family.students = [student._id];
@@ -310,7 +293,6 @@ router.post('/register/student', authLimiter, async (req, res) => {
       remainingBalance: totalFeeAmount,
       fatherName: `${value.firstName} ${value.lastName}`.trim(),
       gender: value.gender,
-      profileImage,
       mustChangePassword: false,
       status: 'active'
     });

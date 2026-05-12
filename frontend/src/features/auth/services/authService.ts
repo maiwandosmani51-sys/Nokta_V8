@@ -2,12 +2,8 @@ import { api } from '@/services/apiClient';
 
 export const authService = {
   login: (payload: { email: string; password: string }) => api.post('/auth/login', payload),
-  registerStudent: (payload: FormData) =>
-    api.post('/auth/register/student', payload, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    }).then((res) => res.data),
+  registerStudent: (payload: Record<string, string>) =>
+    api.post('/auth/register/student', payload).then((res) => res.data),
   getRegistrationOptions: (params?: { classId?: string; subjectId?: string }) =>
     api.get('/auth/register/options', { params }).then((res) => res.data),
   refresh: (refreshToken: string) => api.post('/auth/refresh', { refreshToken }).then((res) => res.data),

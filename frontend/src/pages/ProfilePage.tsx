@@ -5,7 +5,6 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useAuthStore } from '@/store/authStore';
 import { useNavigate } from 'react-router-dom';
-import { applyProfileImageFallback, resolveProfileImage } from '@/utils/profileImage';
 
 export function ProfilePage() {
   const navigate = useNavigate();
@@ -31,12 +30,6 @@ export function ProfilePage() {
       </div>
       <Card className="grid gap-6 lg:grid-cols-[1.5fr_1fr] p-6">
         <div className="space-y-4">
-          <img
-            src={resolveProfileImage(profile?.profileImage, profile?.role)}
-            alt={profile?.name ?? t('profile')}
-            className="h-24 w-24 rounded-full object-cover"
-            onError={(event) => applyProfileImageFallback(event.currentTarget, profile?.role)}
-          />
           <div>
             <p className="text-sm text-slate-400">{t('full_name')}</p>
             <p className="mt-2 text-lg font-semibold text-slate-100">{profile?.name ?? t('not_available')}</p>
