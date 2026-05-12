@@ -112,3 +112,5 @@ Quick login for the current project:
 # nokta_upd_Ai_and_finance
 # nokta_upd_Ai_and_finance
 # Bcak_End_update_file
+# Nokta_version_7
+# Nokta_version_7
