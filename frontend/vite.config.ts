@@ -20,36 +20,81 @@ export default defineConfig({
       registerType: 'autoUpdate',
       filename: 'sw.js',
       workbox: {
-        cacheId: 'app-cache-v2',
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest,json}'],
+        cacheId: 'nokta-academy-offline-v1',
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest,json,jpg,jpeg,jfif,webp,woff,woff2}'],
         runtimeCaching: [
           {
-            urlPattern: /\/api\/.*/,
-            handler: 'NetworkOnly',
+            urlPattern: ({ url, request }) => request.method === 'GET' && url.pathname.startsWith('/api/'),
+            handler: 'NetworkFirst',
             options: {
-              cacheName: 'api-cache'
+              cacheName: 'nokta-api-get-cache',
+              networkTimeoutSeconds: 4,
+              expiration: {
+                maxEntries: 250,
+                maxAgeSeconds: 60 * 60 * 24
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
             }
           },
+          {
+            urlPattern: ({ request }) => ['style', 'script', 'worker'].includes(request.destination),
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'nokta-static-assets',
+              expiration: {
+                maxEntries: 120,
+                maxAgeSeconds: 60 * 60 * 24 * 30
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
+          {
+            urlPattern: ({ request }) => request.destination === 'image',
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'nokta-image-cache',
+              expiration: {
+                maxEntries: 180,
+                maxAgeSeconds: 60 * 60 * 24 * 30
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          }
         ],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//]
       },
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'manifest.webmanifest'],
+      includeAssets: ['favicon.svg', 'manifest.webmanifest', 'images/**/*'],
       manifest: {
         name: 'Nokta Academy Management System',
         short_name: 'Nokta Academy',
         description: 'Modern school management system',
+        start_url: '/',
+        scope: '/',
+        display: 'standalone',
+        background_color: '#0f172a',
         theme_color: '#0ea5e9',
         icons: [
           {
-            src: 'pwa-192.png',
-            sizes: '192x192',
-            type: 'image/png'
+            src: 'favicon.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'any maskable'
           },
           {
-            src: 'pwa-512.png',
+            src: 'favicon.svg',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/svg+xml',
+            purpose: 'any maskable'
           }
         ]
       }

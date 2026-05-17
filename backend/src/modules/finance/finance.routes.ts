@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import Joi from 'joi';
+import mongoose from 'mongoose';
 import { Branch } from '../../models/Branch';
 import { Expense } from '../../models/Expense';
 import { FinanceEntry } from '../../models/FinanceEntry';
@@ -46,6 +47,15 @@ function buildDateFilter(query: any, field: string) {
   return Object.keys(range).length ? { [field]: range } : {};
 }
 
+function buildBranchFilter(req: any) {
+  const requestedBranchId = req.query.branchId ? String(req.query.branchId) : '';
+  const scopedBranchId = req.user?.canonicalRole === 'branch_manager' ? req.user?.branchId : requestedBranchId;
+  if (!scopedBranchId || !mongoose.Types.ObjectId.isValid(scopedBranchId)) {
+    return {};
+  }
+  return { branchId: new mongoose.Types.ObjectId(scopedBranchId) };
+}
+
 router.get('/summary', async (req, res, next) => {
   try {
     const now = new Date();
@@ -54,39 +64,40 @@ router.get('/summary', async (req, res, next) => {
     const entryDateFilter = buildDateFilter(req.query, 'date');
     const expenseDateFilter = buildDateFilter(req.query, 'date');
     const salaryDateFilter = buildDateFilter(req.query, 'createdAt');
+    const branchFilter = buildBranchFilter(req);
 
     const [paymentsTotal, manualIncomeTotal, expenseTotals, pendingPayments, paidInvoices, salaryPayments, salaryTransactionTotals, fixedTeacherTotals, monthlyPayments, monthlyManualIncome, monthlyExpensesRaw, monthlySalaryTransactionsRaw, monthlyPendingBalancesRaw, salaryTrendRaw, branches] = await Promise.all([
       Payment.aggregate([
-        { $match: { isDeleted: false, ...paymentDateFilter } },
+        { $match: { isDeleted: false, ...branchFilter, ...paymentDateFilter } },
         { $group: { _id: null, total: { $sum: '$amount' } } }
       ]),
       FinanceEntry.aggregate([
-        { $match: { isDeleted: false, ...entryDateFilter } },
+        { $match: { isDeleted: false, ...branchFilter, ...entryDateFilter } },
         { $group: { _id: null, total: { $sum: '$amount' } } }
       ]),
       Expense.aggregate([
-        { $match: { isDeleted: false, category: { $ne: 'income' }, ...expenseDateFilter } },
+        { $match: { isDeleted: false, category: { $ne: 'income' }, ...branchFilter, ...expenseDateFilter } },
         { $group: { _id: null, total: { $sum: '$amount' } } }
       ]),
       Student.aggregate([
-        { $match: { isDeleted: false, remainingBalance: { $gt: 0 } } },
+        { $match: { isDeleted: false, remainingBalance: { $gt: 0 }, ...branchFilter } },
         { $group: { _id: null, total: { $sum: '$remainingBalance' } } }
       ]),
-      Payment.countDocuments({ isDeleted: false }),
+      Payment.countDocuments({ isDeleted: false, ...branchFilter }),
       Salary.aggregate([
-        { $match: { isDeleted: false, ...salaryDateFilter } },
+        { $match: { isDeleted: false, ...branchFilter, ...salaryDateFilter } },
         { $group: { _id: null, total: { $sum: '$netAmount' } } }
       ]),
       SalaryTransaction.aggregate([
-        { $match: { isDeleted: false, ...buildDateFilter(req.query, 'createdAt') } },
+        { $match: { isDeleted: false, ...branchFilter, ...buildDateFilter(req.query, 'createdAt') } },
         { $group: { _id: null, total: { $sum: '$earnedAmount' } } }
       ]),
       User.aggregate([
-        { $match: { role: 'teacher', isDeleted: false, active: true, salaryType: 'fixed' } },
+        { $match: { role: 'teacher', isDeleted: false, active: true, salaryType: 'fixed', ...branchFilter } },
         { $group: { _id: null, total: { $sum: '$fixedSalary' } } }
       ]),
       Payment.aggregate([
-        { $match: { isDeleted: false, paymentDate: { $gte: startDate } } },
+        { $match: { isDeleted: false, ...branchFilter, paymentDate: { $gte: startDate } } },
         {
           $group: {
             _id: {
@@ -99,7 +110,7 @@ router.get('/summary', async (req, res, next) => {
         { $sort: { '_id.year': 1, '_id.month': 1 } }
       ]),
       FinanceEntry.aggregate([
-        { $match: { isDeleted: false, date: { $gte: startDate } } },
+        { $match: { isDeleted: false, ...branchFilter, date: { $gte: startDate } } },
         {
           $group: {
             _id: {
@@ -112,7 +123,7 @@ router.get('/summary', async (req, res, next) => {
         { $sort: { '_id.year': 1, '_id.month': 1 } }
       ]),
       Expense.aggregate([
-        { $match: { isDeleted: false, category: { $ne: 'income' }, date: { $gte: startDate } } },
+        { $match: { isDeleted: false, category: { $ne: 'income' }, ...branchFilter, date: { $gte: startDate } } },
         {
           $group: {
             _id: {
@@ -125,7 +136,7 @@ router.get('/summary', async (req, res, next) => {
         { $sort: { '_id.year': 1, '_id.month': 1 } }
       ]),
       SalaryTransaction.aggregate([
-        { $match: { isDeleted: false, createdAt: { $gte: startDate } } },
+        { $match: { isDeleted: false, ...branchFilter, createdAt: { $gte: startDate } } },
         {
           $group: {
             _id: {
@@ -138,7 +149,7 @@ router.get('/summary', async (req, res, next) => {
         { $sort: { '_id.year': 1, '_id.month': 1 } }
       ]),
       Student.aggregate([
-        { $match: { isDeleted: false, remainingBalance: { $gt: 0 }, createdAt: { $gte: startDate } } },
+        { $match: { isDeleted: false, remainingBalance: { $gt: 0 }, ...branchFilter, createdAt: { $gte: startDate } } },
         {
           $group: {
             _id: {
@@ -151,7 +162,7 @@ router.get('/summary', async (req, res, next) => {
         { $sort: { '_id.year': 1, '_id.month': 1 } }
       ]),
       Salary.aggregate([
-        { $match: { isDeleted: false, createdAt: { $gte: startDate } } },
+        { $match: { isDeleted: false, ...branchFilter, createdAt: { $gte: startDate } } },
         {
           $group: {
             _id: {
@@ -163,7 +174,7 @@ router.get('/summary', async (req, res, next) => {
         },
         { $sort: { '_id.year': 1, '_id.month': 1 } }
       ]),
-      Branch.find({ isDeleted: false }).select('name').lean()
+      Branch.find({ isDeleted: false, ...(branchFilter.branchId ? { _id: branchFilter.branchId } : {}) }).select('name').lean()
     ]);
 
     const months = buildMonths(startDate, 6);
@@ -196,7 +207,7 @@ router.get('/summary', async (req, res, next) => {
     }));
 
     const paymentsByBranch = await Payment.aggregate([
-      { $match: { isDeleted: false, branchId: { $ne: null } } },
+      { $match: { isDeleted: false, branchId: { $ne: null }, ...branchFilter } },
       { $group: { _id: '$branchId', total: { $sum: '$amount' } } }
     ]);
 

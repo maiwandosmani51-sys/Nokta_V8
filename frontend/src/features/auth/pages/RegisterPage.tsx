@@ -11,6 +11,7 @@ import { authService } from '@/features/auth/services/authService';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
 import { useTheme } from '@/app/providers/ThemeProvider';
+import { offlineRegistrationOptions } from '@/services/offlineData';
 
 interface RegistrationOptionsResponse {
   classes: Array<{ _id: string; className: string; classCode: string; branchId?: string | null; feeAmount?: number }>;
@@ -47,9 +48,11 @@ export function RegisterPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data: options, isLoading } = useQuery({
-    queryKey: ['registration-options', formData.classId, formData.subjectId],
-    queryFn: () => authService.getRegistrationOptions({ classId: formData.classId || undefined, subjectId: formData.subjectId || undefined }),
-    select: (response) => response.data as RegistrationOptionsResponse
+    queryKey: ['registration-options'],
+    queryFn: () => authService.getRegistrationOptions(),
+    select: (response) => response.data as RegistrationOptionsResponse,
+    placeholderData: { data: offlineRegistrationOptions },
+    retry: false
   });
 
   const locale = useMemo(() => {
@@ -59,24 +62,24 @@ export function RegisterPage() {
   }, [i18n.resolvedLanguage]);
 
   const filteredSubjects = useMemo(
-    () => (options?.subjects ?? []).filter((subject) => !formData.classId || subject.classId === formData.classId),
+    () => (options?.subjects ?? []).filter((subject) => !formData.classId || String(subject.classId) === String(formData.classId)),
     [options?.subjects, formData.classId]
   );
 
   const linkedTeachers = useMemo(() => {
     if (!formData.subjectId) return options?.teachers ?? [];
-    const subject = (options?.subjects ?? []).find((item) => item._id === formData.subjectId);
+    const subject = (options?.subjects ?? []).find((item) => String(item._id) === String(formData.subjectId));
     if (!subject?.teacherId) return options?.teachers ?? [];
-    return (options?.teachers ?? []).filter((teacher) => teacher._id === subject.teacherId);
+    return (options?.teachers ?? []).filter((teacher) => String(teacher._id) === String(subject.teacherId));
   }, [options?.teachers, options?.subjects, formData.subjectId]);
 
   const selectedClass = useMemo(
-    () => (options?.classes ?? []).find((klass) => klass._id === formData.classId),
+    () => (options?.classes ?? []).find((klass) => String(klass._id) === String(formData.classId)),
     [options?.classes, formData.classId]
   );
 
   const selectedSubject = useMemo(
-    () => (options?.subjects ?? []).find((subject) => subject._id === formData.subjectId),
+    () => (options?.subjects ?? []).find((subject) => String(subject._id) === String(formData.subjectId)),
     [options?.subjects, formData.subjectId]
   );
 

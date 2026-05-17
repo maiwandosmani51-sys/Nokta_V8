@@ -214,6 +214,8 @@ export const rolePermissionMatrix: Record<CanonicalRole, PermissionKey[] | ['*']
   ],
   student: [
     'DASHBOARD_VIEW',
+    'CLASS_VIEW',
+    'SUBJECT_VIEW',
     'ATTENDANCE_VIEW',
     'EXAM_VIEW',
     'COURSE_VIEW',
@@ -227,6 +229,8 @@ export const rolePermissionMatrix: Record<CanonicalRole, PermissionKey[] | ['*']
   ],
   parent: [
     'DASHBOARD_VIEW',
+    'CLASS_VIEW',
+    'SUBJECT_VIEW',
     'ATTENDANCE_VIEW',
     'EXAM_VIEW',
     'COURSE_VIEW',
@@ -350,7 +354,10 @@ export const enterpriseRoutePolicies: RoutePolicy[] = [
   { prefix: '/api/users', permissions: ['USER_VIEW'], auditAction: 'USER_ROUTE_ACCESS' },
   { prefix: '/api/teachers', permissions: ['TEACHER_VIEW'], branchScoped: true, ownership: 'branch_or_self' },
   { prefix: '/api/students', permissions: ['STUDENT_VIEW'], branchScoped: true, ownership: 'branch_or_self' },
+  { prefix: '/api/student-messages', permissions: ['DASHBOARD_VIEW'], ownership: 'assigned_or_self' },
   { prefix: '/api/classes', permissions: ['CLASS_VIEW'], branchScoped: true, ownership: 'assigned_or_branch' },
+  { prefix: '/api/timetable', methods: ['POST', 'PUT', 'PATCH', 'DELETE'], permissions: ['CLASS_UPDATE'], branchScoped: true, ownership: 'assigned_or_branch' },
+  { prefix: '/api/timetable', permissions: ['CLASS_VIEW'], branchScoped: true, ownership: 'assigned_or_branch' },
   { prefix: '/api/subjects', permissions: ['SUBJECT_VIEW'], branchScoped: true, ownership: 'assigned_or_branch' },
   { prefix: '/api/courses', methods: ['POST'], permissions: ['COURSE_CREATE'], ownership: 'assigned_or_branch' },
   { prefix: '/api/courses', methods: ['PUT', 'PATCH', 'DELETE'], permissions: ['COURSE_UPDATE'], ownership: 'assigned_or_branch' },
@@ -379,7 +386,7 @@ export const enterpriseRoutePolicies: RoutePolicy[] = [
   { prefix: '/api/roles', methods: ['POST', 'PUT', 'PATCH', 'DELETE'], permissions: ['ROLE_MANAGE'], ownership: 'governance' },
   { prefix: '/api/roles', permissions: ['ROLE_VIEW'], ownership: 'governance' },
   { prefix: '/api/permissions', permissions: ['PERMISSION_VIEW'], ownership: 'governance' },
-  { prefix: '/api/language-settings', permissions: ['LANGUAGE_SETTING_UPDATE'], ownership: 'self' },
+  { prefix: '/api/language-settings', roles: [...enterpriseRoles], ownership: 'self' },
   { prefix: '/api/sessions', permissions: ['SESSION_VIEW'], ownership: 'self' }
 ];
 

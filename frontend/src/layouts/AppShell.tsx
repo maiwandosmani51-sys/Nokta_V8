@@ -5,7 +5,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/locales/i18n';
 import { useAuthStore } from '@/store/authStore';
-import { getMenuForRole, getRouteLabel } from '@/features/resources/config/modules';
+import { getMenuForUser, getRouteLabel, hasExplicitAccessProfile, userHasModuleAction } from '@/features/resources/config/modules';
 import { Bell, LogOut, Menu, UserCircle, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
@@ -38,9 +38,13 @@ export function AppShell() {
   const user = useAuthStore((state) => state.user);
   const [collapsed, setCollapsed] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const canAccessNotifications = Boolean(
+  const strictPermissions = hasExplicitAccessProfile(user);
+  const roleCanAccessNotifications = Boolean(
     user?.role && ['super_admin', 'admin', 'teacher', 'student', 'parent', 'owner', 'branch_manager', 'system_automation'].includes(user.role)
   );
+  const canAccessNotifications = strictPermissions
+    ? userHasModuleAction(user, 'notifications', 'read')
+    : roleCanAccessNotifications || userHasModuleAction(user, 'notifications', 'read');
   const { data: unreadCountData } = useQuery({
     queryKey: ['notifications-unread-count', user?.role],
     queryFn: () => api.get('/notifications/unread-count').then((res) => res.data.data as { unreadCount: number }),
@@ -51,11 +55,11 @@ export function AppShell() {
 
   const menu = useMemo(
     () =>
-      getMenuForRole(user?.role ?? null).map((item) => ({
+      getMenuForUser(user).map((item) => ({
         ...item,
         label: t(item.label),
       })),
-    [user?.role, t]
+    [user, t]
   );
 
   const activeLabel = useMemo(
@@ -87,8 +91,8 @@ export function AppShell() {
         >
           <div className="flex h-20 items-center justify-between gap-3 border-b border-white/10 px-4">
             <div className={`flex items-center gap-3 ${collapsed ? 'justify-center w-full' : ''}`}>
-              <div className="flex h-12 w-12 items-center justify-center rounded-3xl bg-gradient-to-r from-primary via-secondary to-accent text-white shadow-[0_15px_40px_rgba(34,197,94,0.24)]">
-                N
+              <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-white/95 shadow-[0_15px_40px_rgba(245,158,11,0.18)] ring-1 ring-amber-200/40">
+                <img src="/images/1.png" alt="Nokta Academy" className="h-full w-full object-contain p-1" />
               </div>
               {!collapsed && (
                 <div>
@@ -224,19 +228,21 @@ export function AppShell() {
               <div className="flex flex-wrap items-center gap-3">
                 <ThemeToggle />
                 <LanguageSwitcher />
-                <button
-                  type="button"
-                  onClick={() => navigate('/notifications')}
-                  aria-label={t('common.notifications')}
-                  className="relative inline-flex h-11 w-11 items-center justify-center rounded-3xl border border-white/10 bg-white/10 text-slate-100 transition duration-300 hover:bg-white/15"
-                >
-                  {unreadCount > 0 && (
-                    <span className="absolute -end-2 -top-2 min-w-[1.35rem] rounded-full bg-rose-500 px-1.5 py-0.5 text-center text-[10px] font-semibold leading-none text-white">
-                      {unreadCount > 99 ? '99+' : unreadCount}
-                    </span>
-                  )}
-                  <Bell size={18} />
-                </button>
+                {canAccessNotifications && (
+                  <button
+                    type="button"
+                    onClick={() => navigate('/notifications')}
+                    aria-label={t('common.notifications')}
+                    className="relative inline-flex h-11 w-11 items-center justify-center rounded-3xl border border-white/10 bg-white/10 text-slate-100 transition duration-300 hover:bg-white/15"
+                  >
+                    {unreadCount > 0 && (
+                      <span className="absolute -end-2 -top-2 min-w-[1.35rem] rounded-full bg-rose-500 px-1.5 py-0.5 text-center text-[10px] font-semibold leading-none text-white">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
+                    <Bell size={18} />
+                  </button>
+                )}
                 <div className="flex items-center gap-3 rounded-[28px] border border-white/10 bg-white/10 px-4 py-3 text-sm text-slate-100">
                   <UserCircle className="h-10 w-10 text-slate-300" />
                   <div>

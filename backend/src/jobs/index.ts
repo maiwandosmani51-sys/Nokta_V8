@@ -260,3 +260,10 @@ export function startAutomationJobs() {
     startedJobs.set(job.name, handle);
   }
 }
+
+export function stopAutomationJobs() {
+  for (const handle of startedJobs.values()) {
+    clearInterval(handle);
+  }
+  startedJobs.clear();
+}

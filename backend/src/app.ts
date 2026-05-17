@@ -42,6 +42,7 @@ const corsOptions = {
     'Content-Type',
     'Authorization',
     'X-Requested-With',
+    config.csrfHeaderName,
     'Accept',
     'Origin',
     'Access-Control-Request-Method',
@@ -61,8 +62,8 @@ app.use(helmet({
 }));
 
 app.use(requestContextMiddleware);
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: config.bodyLimit }));
+app.use(express.urlencoded({ extended: true, limit: config.bodyLimit }));
 app.use(requestSanitizationMiddleware);
 app.use(csrfProtectionMiddleware);
 app.use(compression());
@@ -70,7 +71,7 @@ app.use(compression());
 app.use('/uploads', (req, res, next) => {
   const origin = req.headers.origin;
 
-  if (origin) {
+  if (origin && allowedOrigins.includes(origin)) {
     res.header('Access-Control-Allow-Origin', origin);
   }
 
@@ -81,10 +82,14 @@ app.use('/uploads', (req, res, next) => {
   next();
 }, express.static(path.join(__dirname, '../uploads')));
 
-app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-  next();
-});
+if (config.environment !== 'test') {
+  app.use((req, res, next) => {
+    if (config.environment === 'development') {
+      console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    }
+    next();
+  });
+}
 
 app.use(systemRouter);
 app.use('/api', (req, res, next) => (

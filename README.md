@@ -1,116 +1,100 @@
 # Nokta Academy Management System
 
-A modern full-stack school management system built with React, Vite, Tailwind CSS, Node.js, Express, and MongoDB.
+Nokta Academy is a full-stack educational management system for schools and academies. It includes role-based dashboards, authentication, student and teacher management, classes, attendance, exams, results, books, finance, reports, multilingual UI, theme support, and offline-first frontend caching.
 
-## Features Implemented
+## Project Structure
 
-### Core Features
-- **User Management**: Super Admin, Admins, Teachers, Students, Family Students, Librarians, Accountants
-- **Authentication & Authorization**: JWT-based auth with RBAC (Role-Based Access Control) and ACL (Access Control List)
-- **Dashboard**: Role-based dashboards with analytics and user visibility controls
+- `backend/` - Node.js, Express, TypeScript, MongoDB/Mongoose API.
+- `frontend/` - React 18, Vite, TypeScript, Tailwind CSS web app with PWA support.
+- `Nokta_App/frontend_mobile/` - Separate mobile frontend copy.
+- `account/` - Local account notes and sample credentials.
+- `SYSTEM_WORK_LOG.md` - Phase-by-phase engineering work log.
 
-### Advanced Features
-- **Dynamic Teacher Salary**: Fixed or percentage-based salary calculation
-- **Student Data Restrictions**: Students can only view their own data via ACL
-- **Auto Family Account Creation**: Automatic creation of family accounts for students
-- **Admin Dashboard User Visibility**: Admins can see all users, others have restricted access
-- **Secure Login**: Robust authentication with password hashing and error handling
+## Technology Stack
 
-### Technical Features
-- **Backend**: Express.js with TypeScript, MongoDB with Mongoose, modular architecture
-- **Frontend**: React with Vite, Tailwind CSS, Zustand for state management
-- **Security**: Helmet, CORS, rate limiting, input validation with Joi
-- **Database Seeding**: Automated data population with sample users and data
+- Frontend: React, Vite, TypeScript, Tailwind CSS, Zustand, React Query, React Router, i18next, Recharts, vite-plugin-pwa.
+- Backend: Express, TypeScript, Mongoose, JWT authentication, bcrypt password hashing, Joi validation, Helmet, CORS, rate limiting.
+- Database: MongoDB, default local URI `mongodb://localhost:27017/nokta_academy`.
+- Build system: npm scripts for each app.
 
-## Folder Structure
+## Prerequisites
 
-- `backend/` — Express API with modular controllers, authorization, validation, and dashboard summary endpoints.
-- `frontend/` — Vite React app with lazy routes, React Query, Zustand, optimized UI, and PWA support.
-- `account/` — System accounts and credentials file.
+- Node.js 18 or newer.
+- npm.
+- MongoDB running locally on port `27017`.
+- Windows PowerShell users: run commands with `npm.cmd` if `npm` is blocked by execution policy.
 
-## Setup
-
-### Prerequisites
-- Node.js (v18+)
-- MongoDB (running on localhost:27017)
-- npm or yarn
-
-### Backend Setup
+## Backend Setup
 
 ```bash
 cd backend
-npm install
-cp .env.example .env
-# Edit .env if needed (default MongoDB URI: mongodb://localhost:27017/nokta_academy)
-npm run seed  # Populate database with sample data
-npm run dev   # Start development server on port 8081
+npm.cmd install
+copy .env.example .env
+npm.cmd run seed
+npm.cmd run dev
 ```
 
-### Frontend Setup
+The backend runs on `http://localhost:8081` by default. Health check:
+
+```bash
+curl http://localhost:8081/health
+```
+
+## Frontend Setup
 
 ```bash
 cd frontend
-npm install
-npm run dev  # Start development server on port 5173
+npm.cmd install
+npm.cmd run dev
 ```
 
-## API Endpoints
+The frontend runs on `http://localhost:5173` and proxies `/api` to `http://127.0.0.1:8081`.
 
-### Authentication
-- `POST /api/auth/login` - User login
+## Production Build
 
-### Protected Routes (require authentication)
-- `/api/users` - User management
-- `/api/students` - Student operations with ACL
-- `/api/teachers` - Teacher management with salary calculations
-- `/api/classes` - Class management with ACL
-- `/api/results` - Exam results with ACL and populate
-- `/api/families` - Family management with ACL
-- `/api/dashboard` - Dashboard analytics
+```bash
+cd backend
+npm.cmd run build
 
-## User Roles & Permissions
+cd ..\frontend
+npm.cmd run build
+```
 
-- **super_admin**: Full access to all features
-- **admin**: Can manage users, view all data
-- **teacher**: Can view/manage assigned students, exams, results
-- **student**: Can only view own data
-- **family_student**: Can view family members' data
-- **librarian**: Library management
-- **accountant**: Finance management
+To preview the built frontend:
 
-## Database Models
+```bash
+cd frontend
+npm.cmd run preview
+```
 
-- **User**: Extended with salaryType, salaryValue, fee, familyId, teacherId
-- **Family**: Family accounts
-- **Class, Subject, Exam, Result**: Academic data
-- **Expense, Book, Notification, AuditLog**: Additional features
+## Offline Notes
 
-## Development Notes
+- Dependencies are installed locally in `node_modules`, so builds and local dev can run without downloading packages once installed.
+- The frontend includes PWA service worker generation with cache rules for pages, scripts, styles, images, and GET API responses.
+- Home page hero images and app icons are served from `frontend/public`, not from a CDN.
+- The web app stores successful GET API responses in a small local offline cache and reuses them when the API is unavailable.
+- The home and registration pages include bundled fallback academic data so they still render before the backend is available.
+- MongoDB must be available locally for the backend API to start.
 
-- Backend routes are protected via JWT and RBAC.
-- Dashboard summary endpoint is exposed at `/api/dashboard/summary`.
-- Frontend is designed for high performance with lazy imports, memoized components, and reusable UI.
-- ACL implemented in controllers with type assertions for lean queries.
-- Salary calculation supports fixed amount or percentage of student fees.
+## Main Local URLs
 
-## Troubleshooting
-
-- **Port Conflicts**: Backend runs on 8081, frontend on 5173
-- **MongoDB Connection**: Ensure MongoDB is running on localhost:27017
-- **Login Issues**: Check console logs for debug information
-- **ACL Errors**: Ensure user roles are properly set in database
+- Frontend: `http://localhost:5173`
+- Backend API: `http://localhost:8081/api`
+- Backend health: `http://localhost:8081/health`
 
 ## Sample Accounts
 
-See `account/accounts.md` for login credentials for all user types.
-Quick login for the current project:
+See `account/accounts.md` for local sample credentials. Common seeded accounts include:
+
 - Super Admin: `admin@gmail.com` / `12345678`
 - Admin: `admin1@nokta.com` / `Admin123!`
 - Teacher: `teacher1@nokta.com` / `Teacher123!`
 - Student: `student1@nokta.com` / `Student123!`
 - Parent/Family: `family1@nokta.com` / `Family123!`
-# nokta_upd_Ai_and_finance
-# nokta_upd_Ai_and_finance
-# Bcak_End_update_file
-# Nokta_version_7
-# Nokta_version_7
+
+## Troubleshooting
+
+- If `npm` fails in PowerShell with an execution policy error, use `npm.cmd`.
+- If the backend does not start, confirm MongoDB is running and `MONGO_URI` in `backend/.env` is correct.
+- If login fails after reseeding, clear browser local storage and try the seeded credentials again.
+- If the frontend cannot reach the API, confirm the backend is on port `8081` or set `VITE_API_URL`.

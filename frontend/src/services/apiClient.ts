@@ -1,4 +1,4 @@
-import axios, { AxiosError, type AxiosRequestConfig } from 'axios';
+import axios, { AxiosError, type AxiosRequestConfig, type AxiosResponse } from 'axios';
 import { clearAuthSession, getCurrentAuthStorage, getStoredAuthValue, isRememberedSession, persistAuthSession } from '@/features/auth/utils/authStorage';
 
 const defaultApiBaseUrl =
@@ -18,6 +18,79 @@ export const apiClient = axios.create({
 });
 
 let refreshPromise: Promise<string | null> | null = null;
+const offlineCachePrefix = 'nokta-api-cache:';
+const offlineCacheVersion = 'v1';
+
+function isGetRequest(config?: AxiosRequestConfig) {
+  return String(config?.method ?? 'get').toLowerCase() === 'get';
+}
+
+function buildOfflineCacheKey(config?: AxiosRequestConfig) {
+  if (typeof window === 'undefined' || !config?.url) {
+    return null;
+  }
+
+  const url = new URL(config.url, config.baseURL || API_BASE_URL);
+  const params = new URLSearchParams(url.search);
+
+  if (config.params && typeof config.params === 'object') {
+    Object.entries(config.params as Record<string, unknown>).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === '') {
+        return;
+      }
+      params.set(key, String(value));
+    });
+  }
+
+  params.sort();
+  const query = params.toString();
+  return `${offlineCachePrefix}${offlineCacheVersion}:${url.pathname}${query ? `?${query}` : ''}`;
+}
+
+function cacheGetResponse(response: AxiosResponse) {
+  const key = buildOfflineCacheKey(response.config);
+  if (!key || !isGetRequest(response.config) || response.status !== 200) {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(key, JSON.stringify({
+      cachedAt: Date.now(),
+      data: response.data,
+      status: response.status,
+      statusText: response.statusText
+    }));
+  } catch {
+    // Cache quota/private-mode failures should never break live API responses.
+  }
+}
+
+function readCachedGetResponse(error: AxiosError) {
+  const config = error.config;
+  const key = buildOfflineCacheKey(config);
+  if (!key || !isGetRequest(config) || error.response?.status === 401 || error.response?.status === 403) {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) {
+      return null;
+    }
+
+    const cached = JSON.parse(raw) as { data: unknown; status?: number; statusText?: string };
+    return {
+      data: cached.data,
+      status: cached.status ?? 200,
+      statusText: cached.statusText ?? 'OK (offline cache)',
+      headers: {},
+      config: config!,
+      request: error.request
+    } as AxiosResponse;
+  } catch {
+    return null;
+  }
+}
 
 async function refreshAccessToken() {
   const storedRefreshToken = getStoredAuthValue('refreshToken');
@@ -71,7 +144,10 @@ apiClient.interceptors.request.use(
 );
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    cacheGetResponse(response);
+    return response;
+  },
   async (error: AxiosError) => {
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
     const requestUrl = originalRequest?.url ?? '';
@@ -100,6 +176,12 @@ apiClient.interceptors.response.use(
       clearAuthSession();
       window.location.href = '/login';
     }
+
+    const cachedResponse = readCachedGetResponse(error);
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+
     return Promise.reject(error);
   }
 );

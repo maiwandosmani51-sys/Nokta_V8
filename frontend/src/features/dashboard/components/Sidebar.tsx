@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { designSystem } from '@/constants/designSystem';
-import { getMenuForRole } from '@/features/resources/config/modules';
+import { getMenuForUser } from '@/features/resources/config/modules';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -16,7 +16,7 @@ export function Sidebar({ collapsed, open, onClose, onToggle }: { collapsed: boo
   const CollapseIcon = collapsed ? (isRtl ? ChevronLeft : ChevronRight) : (isRtl ? ChevronRight : ChevronLeft);
   const CloseIcon = isRtl ? ChevronRight : ChevronLeft;
 
-  const visibleMenu = useMemo(() => getMenuForRole((user?.role as any) ?? null), [user?.role]);
+  const visibleMenu = useMemo(() => getMenuForUser(user), [user]);
 
   return (
     <>

@@ -32,6 +32,10 @@ export class AuthService {
   }
 
   private serializeUser(user: any) {
+    const legacyPermissions = user.permissions instanceof Map
+      ? Object.fromEntries(user.permissions.entries())
+      : user.permissions ?? {};
+
     return {
       id: user._id?.toString?.() ?? user.id,
       name: user.name,
@@ -45,7 +49,10 @@ export class AuthService {
       mustChangePassword: Boolean(user.mustChangePassword),
       status: user.status ?? 'active',
       emailVerified: Boolean(user.emailVerifiedAt),
-      phoneVerified: Boolean(user.phoneVerifiedAt)
+      phoneVerified: Boolean(user.phoneVerifiedAt),
+      permissions: legacyPermissions,
+      permissionKeys: Array.isArray(user.permissionKeys) ? user.permissionKeys : [],
+      revokedPermissionKeys: Array.isArray(user.revokedPermissionKeys) ? user.revokedPermissionKeys : []
     };
   }
 

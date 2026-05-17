@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type NextFunction, type Request, type Response } from 'express';
 import Joi from 'joi';
 import { authenticate } from '../../middlewares/auth';
 import { validate } from '../../middlewares/validate';
@@ -15,7 +15,7 @@ const languageSchema = Joi.object({
 
 router.use(authenticate);
 
-router.get('/current', async (req, res, next) => {
+async function getCurrentLanguageSetting(req: Request, res: Response, next: NextFunction) {
   try {
     const setting = await LanguageSetting.findOne({
       userId: req.user!.userId,
@@ -27,7 +27,10 @@ router.get('/current', async (req, res, next) => {
   } catch (error) {
     next(error);
   }
-});
+}
+
+router.get('/', getCurrentLanguageSetting);
+router.get('/current', getCurrentLanguageSetting);
 
 router.put('/current', validate(languageSchema), async (req, res, next) => {
   try {

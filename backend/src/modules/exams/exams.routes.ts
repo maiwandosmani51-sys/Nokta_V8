@@ -21,6 +21,8 @@ const examSchema = Joi.object({
     totalMarks: Joi.number().min(1).default(100),
     passingMarks: Joi.number().min(1).optional(),
     examType: Joi.string().valid('midterm', 'final', 'quiz').optional(),
+    onlineExamUrl: Joi.string().uri().allow('', null).optional(),
+    googleFormUrl: Joi.string().uri().allow('', null).optional(),
     status: Joi.string().valid('draft', 'published').optional()
   })
 });
@@ -35,6 +37,8 @@ const examUpdateSchema = Joi.object({
     totalMarks: Joi.number().min(1).optional(),
     passingMarks: Joi.number().min(1).optional(),
     examType: Joi.string().valid('midterm', 'final', 'quiz').optional(),
+    onlineExamUrl: Joi.string().uri().allow('', null).optional(),
+    googleFormUrl: Joi.string().uri().allow('', null).optional(),
     status: Joi.string().valid('draft', 'published').optional()
   }).min(1)
 });

@@ -6,7 +6,7 @@
     "dev": "nodemon --watch src --exec ts-node src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "lint": "eslint . --ext .ts",
+    "lint": "tsc --noEmit",
     "seed": "ts-node src/scripts/seed.ts",
     "delete-students-teachers": "ts-node src/scripts/delete_students_teachers.ts",
     "clear-database": "ts-node src/scripts/clear_database.ts",

@@ -5,26 +5,53 @@ const permissionLookup = new Set<string>(enterprisePermissions);
 const legacyActionMap: Record<string, string> = {
   create: 'CREATE',
   read: 'VIEW',
+  view: 'VIEW',
   update: 'UPDATE',
   delete: 'DELETE'
 };
 
 const legacyModuleMap: Record<string, string> = {
   users: 'USER',
+  user: 'USER',
   students: 'STUDENT',
+  student: 'STUDENT',
   teachers: 'TEACHER',
+  teacher: 'TEACHER',
   classes: 'CLASS',
+  class: 'CLASS',
   subjects: 'SUBJECT',
+  subject: 'SUBJECT',
+  courses: 'COURSE',
+  course: 'COURSE',
+  curriculum: 'CURRICULUM',
+  attendance: 'ATTENDANCE',
   exams: 'EXAM',
+  exam: 'EXAM',
   results: 'RESULT',
+  result: 'RESULT',
+  payments: 'PAYMENT',
+  payment: 'PAYMENT',
   finance: 'PAYMENT',
   expenses: 'EXPENSE',
+  expense: 'EXPENSE',
   families: 'FAMILY_LINK',
+  family: 'FAMILY_LINK',
+  family_link: 'FAMILY_LINK',
   books: 'RESOURCE',
+  resources: 'RESOURCE',
+  resource: 'RESOURCE',
   notifications: 'NOTIFICATION',
+  notification: 'NOTIFICATION',
   audit: 'AUDIT',
   roles: 'ROLE',
+  role: 'ROLE',
   permissions: 'PERMISSION',
+  permission: 'PERMISSION',
+  branches: 'BRANCH',
+  branch: 'BRANCH',
+  reports: 'REPORT',
+  report: 'REPORT',
+  ai_assistant: 'AI_ASSISTANT',
   dashboard: 'DASHBOARD'
 };
 
@@ -52,7 +79,7 @@ export function roleMatches(userRole: string | null | undefined, allowedRoles: A
 
 export function permissionFromLegacy(moduleKey: string, action: string): PermissionKey | undefined {
   const modulePrefix = legacyModuleMap[moduleKey];
-  const actionSuffix = legacyActionMap[action];
+  const actionSuffix = legacyActionMap[action] ?? action.toUpperCase();
 
   if (!modulePrefix || !actionSuffix) {
     return undefined;
@@ -64,6 +91,41 @@ export function permissionFromLegacy(moduleKey: string, action: string): Permiss
   }
 
   return undefined;
+}
+
+export function permissionFromRoute(pathname: string, method: string): PermissionKey | undefined {
+  const routePath = pathname.replace(/^\/api\/?/, '');
+  const [moduleKey, nestedAction] = routePath.split('/').filter(Boolean);
+  const normalizedMethod = method.toUpperCase();
+
+  if (moduleKey === 'attendance' && normalizedMethod === 'POST') {
+    return 'ATTENDANCE_MARK';
+  }
+
+  if (moduleKey === 'reports' && nestedAction === 'generate' && normalizedMethod === 'POST') {
+    return 'REPORT_GENERATE';
+  }
+
+  if (moduleKey === 'branches' && nestedAction === 'request-delete' && normalizedMethod === 'POST') {
+    return 'BRANCH_DELETE_REQUEST';
+  }
+
+  if (moduleKey === 'branches' && nestedAction === 'approve-delete' && normalizedMethod === 'POST') {
+    return 'BRANCH_DELETE_APPROVE';
+  }
+
+  const action =
+    normalizedMethod === 'GET' || normalizedMethod === 'HEAD'
+      ? 'read'
+      : normalizedMethod === 'POST'
+        ? 'create'
+        : normalizedMethod === 'PUT' || normalizedMethod === 'PATCH'
+          ? 'update'
+          : normalizedMethod === 'DELETE'
+            ? 'delete'
+            : '';
+
+  return moduleKey && action ? permissionFromLegacy(moduleKey, action) : undefined;
 }
 
 export function flattenLegacyPermissionMap(value: unknown): PermissionKey[] {
@@ -113,14 +175,10 @@ export function collectUserPermissions(user: {
     : null;
 
   const basePermissions = rolePermissionOverride ?? getRolePermissions(user?.role);
-  if (basePermissions[0] === '*') {
-    return ['*'];
-  }
-
-  const grantedByRole = new Set<string>(basePermissions as PermissionKey[]);
   const grantedByLegacyMap = flattenLegacyPermissionMap(user?.permissions);
   const grantedByUser = Array.isArray(user?.permissionKeys) ? user!.permissionKeys : [];
   const revokedByUser = new Set(Array.isArray(user?.revokedPermissionKeys) ? user!.revokedPermissionKeys : []);
+  const grantedByRole = new Set<string>(basePermissions[0] === '*' ? enterprisePermissions : basePermissions as PermissionKey[]);
 
   const granted = new Set<string>([...grantedByRole, ...grantedByLegacyMap, ...grantedByUser]);
   for (const revoked of revokedByUser) {

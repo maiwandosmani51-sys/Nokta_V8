@@ -11,6 +11,8 @@ const studentSchema = createBaseSchema(
     fatherName: { type: String, required: true, trim: true },
     familyPhone: { type: String, required: true, trim: true },
     familyEmail: { type: String, default: '', trim: true, lowercase: true },
+    loginEmail: { type: String, default: '', trim: true, lowercase: true },
+    profileImage: { type: String, trim: true, default: '' },
     gender: { type: String, enum: ['male', 'female', 'other'], required: true, index: true },
     registrationDate: { type: Date, default: Date.now },
     registrationExpiryDate: { type: Date, default: null, index: true },

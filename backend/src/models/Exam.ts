@@ -13,6 +13,8 @@ const examSchema = createBaseSchema(
     passingMarks: { type: Number, default: 40 },
     examType: { type: String, enum: ['midterm', 'final', 'quiz'], default: 'midterm' },
     examCode: { type: String, required: true, unique: true, trim: true },
+    onlineExamUrl: { type: String, trim: true, default: '' },
+    googleFormUrl: { type: String, trim: true, default: '' },
     status: { type: String, enum: ['draft', 'published'], default: 'draft', index: true },
     publishedAt: { type: Date, default: null }
   },

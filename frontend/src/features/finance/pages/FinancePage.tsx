@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { PageHeader, SearchFilterBar } from '@/shared/components/Common';
 import { financeService } from '@/features/finance/services/financeService';
+import { api } from '@/services/apiClient';
+import { useAuthStore } from '@/store/authStore';
 import { useDebounce } from '@/hooks/useDebounce';
 import { matchesSearch, sortCollection, type ListSortDirection, type ListSortField } from '@/utils/listSearchSort';
 
@@ -19,9 +21,21 @@ export function FinancePage() {
   const [sortDirection, setSortDirection] = useState<ListSortDirection>('desc');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [branchId, setBranchId] = useState('');
+  const user = useAuthStore((state) => state.user);
+  const canFilterBranch = user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'owner';
   const { data: summary, isError } = useQuery({
-    queryKey: ['finance-summary', startDate, endDate],
-    queryFn: () => financeService.summary({ startDate: startDate || undefined, endDate: endDate || undefined })
+    queryKey: ['finance-summary', startDate, endDate, branchId],
+    queryFn: () => financeService.summary({ startDate: startDate || undefined, endDate: endDate || undefined, branchId: branchId || undefined })
+  });
+
+  const { data: branchOptions } = useQuery({
+    queryKey: ['finance-branches'],
+    queryFn: () => api.get('/branches', { params: { limit: 100 } }).then((res) => {
+      const branches = Array.isArray(res.data.data) ? res.data.data : [];
+      return branches.map((branch: any) => ({ value: String(branch._id ?? branch.id), label: String(branch.name ?? branch.code ?? '') }));
+    }),
+    enabled: canFilterBranch
   });
 
   const { data: records, isLoading: recordsLoading } = useQuery({
@@ -125,7 +139,7 @@ export function FinancePage() {
       <PageHeader title="common.finance" description="common.live_school_metrics" />
 
       <Card className="p-4">
-        <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
+        <div className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto] md:items-end">
           <div>
             <label className="mb-2 block text-sm text-slate-300">{t('common.start_date')}</label>
             <Input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
@@ -134,7 +148,18 @@ export function FinancePage() {
             <label className="mb-2 block text-sm text-slate-300">{t('common.end_date')}</label>
             <Input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
           </div>
-          <Button type="button" variant="outline" onClick={() => { setStartDate(''); setEndDate(''); }}>
+          {canFilterBranch && (
+            <div>
+              <label className="mb-2 block text-sm text-slate-300">{t('common.branch')}</label>
+              <Select
+                value={branchId}
+                options={[{ value: '', label: t('common.all_branches', { defaultValue: 'All branches' }) }, ...(branchOptions ?? [])]}
+                placeholder={t('common.branch')}
+                onChange={(value) => setBranchId(String(value))}
+              />
+            </div>
+          )}
+          <Button type="button" variant="outline" onClick={() => { setStartDate(''); setEndDate(''); setBranchId(''); }}>
             {t('common.clear_filters', { defaultValue: 'Clear filters' })}
           </Button>
         </div>

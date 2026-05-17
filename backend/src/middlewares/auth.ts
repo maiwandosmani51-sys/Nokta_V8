@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import type { Request, Response, NextFunction } from 'express';
 import { config } from '../config/env';
 import { createError } from '../helpers/response';
-import { permissionFromLegacy } from '../utils/roleHelpers';
+import { hasPermission, permissionFromLegacy, permissionFromRoute } from '../utils/roleHelpers';
 import { User } from '../models/User';
 import { normalizeRole } from '../utils/roleHelpers';
 import { SessionService } from '../services/sessionService';
@@ -73,10 +73,25 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
 export function authorize(allowedRoles: string[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     const role = req.user?.role;
-    if (!role || !permissionService.hasRequiredAccess({ role }, { prefix: req.originalUrl, roles: allowedRoles as any })) {
+    if (!role) {
       return res.status(403).json(createError('Access denied'));
     }
-    next();
+
+    if (permissionService.hasRequiredAccess({ role }, { prefix: req.originalUrl, roles: allowedRoles as any })) {
+      return next();
+    }
+
+    const requestPermission = permissionFromRoute(req.originalUrl, req.method);
+    if (requestPermission && hasPermission(req.user, requestPermission)) {
+      return next();
+    }
+
+    const policy = requestPermission ? null : permissionService.getRoutePolicy(req.originalUrl, req.method);
+    if (policy?.permissions?.length && permissionService.hasRequiredAccess(req.user, policy)) {
+      return next();
+    }
+
+    return res.status(403).json(createError('Access denied'));
   };
 }
 

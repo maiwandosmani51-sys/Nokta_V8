@@ -122,6 +122,11 @@ export class StudentService {
     const registrationExpiryDate = data.registrationExpiryDate
       ? new Date(data.registrationExpiryDate)
       : new Date(registrationDate.getFullYear(), registrationDate.getMonth() + 1, registrationDate.getDate());
+    const studentEmail = String(data.loginEmail || '').trim().toLowerCase() || `${studentId.toLowerCase()}@student.nokta.academy`;
+    const existingStudentLogin = await User.findOne({ email: studentEmail, isDeleted: false }).lean();
+    if (existingStudentLogin) {
+      throw new Error('Student login email already exists');
+    }
 
     const student = await Student.create({
       rollNo,
@@ -132,6 +137,8 @@ export class StudentService {
       fatherName: data.fatherName,
       familyPhone: data.familyPhone,
       familyEmail: family.guardianEmail,
+      loginEmail: studentEmail,
+      profileImage: data.profileImage ?? '',
       gender: data.gender,
       registrationDate,
       registrationExpiryDate,
@@ -145,14 +152,14 @@ export class StudentService {
       parentProfileId: parentProfile._id
     });
 
-    const studentEmail = `${studentId.toLowerCase()}@student.nokta.academy`;
     const studentUser = await User.create({
       name: `${data.firstName} ${data.lastName}`.trim(),
       email: studentEmail,
       phone: data.familyPhone,
-      password: await hashPassword(`Student@${studentId}!`),
+      password: await hashPassword(data.loginPassword || `Student@${studentId}!`),
       role: 'student',
       studentId,
+      profileImage: data.profileImage ?? '',
       classId: data.classId,
       subjectId: data.subjectId,
       assignedTeacherId: data.teacherId,
@@ -281,6 +288,9 @@ export class StudentService {
     }
 
     const updatedData: any = { ...data };
+    const nextLoginEmail = String(data.loginEmail || '').trim().toLowerCase();
+    const nextLoginPassword = String(data.loginPassword || '').trim();
+    delete updatedData.loginPassword;
     if (data.feeAmount !== undefined || data.paidAmount !== undefined) {
       const fee = data.feeAmount !== undefined ? data.feeAmount : student.feeAmount;
       const paid = data.paidAmount !== undefined ? data.paidAmount : student.paidAmount;
@@ -299,7 +309,10 @@ export class StudentService {
           name: `${updatedStudent.firstName} ${updatedStudent.lastName}`.trim(),
           firstName: updatedStudent.firstName,
           lastName: updatedStudent.lastName,
+          ...(nextLoginEmail ? { email: nextLoginEmail } : {}),
+          ...(nextLoginPassword ? { password: await hashPassword(nextLoginPassword), mustChangePassword: true } : {}),
           phone: updatedStudent.familyPhone,
+          profileImage: updatedStudent.profileImage ?? '',
           classId: updatedStudent.classId,
           subjectId: updatedStudent.subjectId,
           assignedTeacherId: updatedStudent.teacherId,

@@ -10,6 +10,9 @@ interface UserProfile {
   role: Role;
   originalRole?: string;
   canonicalRole?: string;
+  permissions?: Record<string, string[]>;
+  permissionKeys?: string[];
+  revokedPermissionKeys?: string[];
 }
 
 interface AuthState {

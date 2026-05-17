@@ -19,6 +19,54 @@ import { SalaryTransaction } from '../models/SalaryTransaction';
 
 const ACCOUNT_FILE_PATH = path.resolve(process.cwd(), '..', 'account', 'accounts.md');
 
+const STUDENT_PROFILE_IMAGES = [
+  '/images/stunet/images.jfif',
+  '/images/stunet/images (1).jfif',
+  '/images/stunet/images (2).jfif',
+  '/images/stunet/images (3).jfif',
+  '/images/stunet/images (4).jfif',
+  '/images/stunet/images (5).jfif',
+  '/images/stunet/images (6).jfif',
+  '/images/stunet/images (7).jfif',
+  '/images/stunet/images (8).jfif',
+  '/images/stunet/images (9).jfif',
+  '/images/stunet/download.jfif',
+  '/images/stunet/download (1).jfif',
+  '/images/stunet/download (2).jfif',
+  '/images/stunet/download (3).jfif',
+  '/images/stunet/download (4).jfif',
+  '/images/stunet/download (5).jfif',
+  '/images/stunet/download (6).jfif',
+  '/images/stunet/b1.jpg',
+  '/images/stunet/b3.jpg',
+  '/images/stunet/b4.jpg'
+];
+
+const TEACHER_PROFILE_IMAGES = [
+  '/images/techer/images.jfif',
+  '/images/techer/images (1).jfif',
+  '/images/techer/images (2).jfif',
+  '/images/techer/images (3).jfif',
+  '/images/techer/images (4).jfif',
+  '/images/techer/download.jfif',
+  '/images/techer/download (1).jfif',
+  '/images/techer/download (2).jfif',
+  '/images/techer/download (7).jfif'
+];
+
+const CLASS_NAMES = [
+  'Computer Fundamentals',
+  'Web Design',
+  'Programming Basics',
+  'English Language',
+  'Mathematics',
+  'Science',
+  'Islamic Studies',
+  'Accounting',
+  'Graphic Design',
+  'Office Applications'
+];
+
 const SUBJECT_TITLES = [
   'Mathematics',
   'Science',
@@ -100,7 +148,7 @@ async function createUserAccounts(accounts: { [key: string]: { name: string; ema
     accounts.admin.push({ name, email: user.email, password: 'Admin123!', role: 'admin' });
   }
 
-  for (let i = 1; i <= 30; i++) {
+  for (let i = 1; i <= 10; i++) {
     const firstName = faker.person.firstName();
     const lastName = faker.person.lastName();
     const name = `${firstName} ${lastName}`;
@@ -117,6 +165,7 @@ async function createUserAccounts(accounts: { [key: string]: { name: string; ema
       lastName,
       phone: faker.phone.number(),
       whatsapp: faker.phone.number(),
+      profileImage: TEACHER_PROFILE_IMAGES[(i - 1) % TEACHER_PROFILE_IMAGES.length],
       salaryType,
       fixedSalary: salaryType === 'fixed' ? salaryValue : 0,
       percentageRate: salaryType === 'percentage' ? salaryValue : 35,
@@ -127,17 +176,20 @@ async function createUserAccounts(accounts: { [key: string]: { name: string; ema
     accounts.teacher.push({ name, email: user.email, password: 'Teacher123!', role: 'teacher' });
   }
 
-  for (let i = 1; i <= 300; i++) {
+  for (let i = 1; i <= 100; i++) {
     const firstName = faker.person.firstName();
     const lastName = faker.person.lastName();
     const name = `${firstName} ${lastName}`;
     const hashedPassword = await bcrypt.hash('Student123!', 10);
+    const gender = faker.helpers.arrayElement(['male', 'female']);
     const user = await User.create({
       name,
       email: `student${i}@nokta.com`,
       password: hashedPassword,
       role: 'student',
       studentId: `STD-${String(i).padStart(4, '0')}`,
+      gender,
+      profileImage: STUDENT_PROFILE_IMAGES[(i - 1) % STUDENT_PROFILE_IMAGES.length],
       status: 'active'
     });
     students.push(user);
@@ -204,7 +256,7 @@ async function createClassesAndSubjects(teachers: any[]) {
   faker.helpers.shuffle(teacherQueue);
 
   for (let i = 1; i <= 10; i++) {
-    const className = `Class ${i}`;
+    const className = CLASS_NAMES[i - 1] ?? `Class ${i}`;
     const subjectCount = faker.number.int({ min: 3, max: 5 });
     const classSubjects: any[] = [];
     const assignedTeacherIds = new Set<string>();
@@ -298,6 +350,9 @@ async function createStudentsAndFamilies(students: any[], classes: any[]) {
         lastName: student.lastName || student.name.split(' ').slice(1).join(' '),
         fatherName: faker.person.fullName(),
         familyPhone: faker.phone.number(),
+        loginEmail: student.email,
+        profileImage: student.profileImage ?? STUDENT_PROFILE_IMAGES[studentIndex % STUDENT_PROFILE_IMAGES.length],
+        gender: student.gender ?? 'male',
         classId: classData._id,
         subjectId: subject._id,
         teacherId: subject.teacher,
@@ -311,6 +366,7 @@ async function createStudentsAndFamilies(students: any[], classes: any[]) {
         classId: classData._id,
         subjectId: subject._id,
         assignedTeacherId: subject.teacher,
+        profileImage: student.profileImage ?? STUDENT_PROFILE_IMAGES[studentIndex % STUDENT_PROFILE_IMAGES.length],
         feeAmount,
         paidAmount,
         remainingBalance: feeAmount - paidAmount
@@ -342,6 +398,8 @@ async function createExams(subjects: any[]) {
       totalMarks: 100,
       passingMarks: 40,
       examType: 'midterm',
+      onlineExamUrl: `https://docs.google.com/forms/d/e/nokta-academy-demo-${i}/viewform`,
+      googleFormUrl: `https://docs.google.com/forms/d/e/nokta-academy-demo-${i}/viewform`,
       examCode: `EXM-${String(i).padStart(3, '0')}`
     });
     exams.push(exam);

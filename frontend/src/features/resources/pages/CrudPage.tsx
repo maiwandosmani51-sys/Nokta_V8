@@ -11,8 +11,8 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { AlertTriangle, ArrowUpDown, Plus, X } from 'lucide-react';
-import { normalizeRole, type ModuleConfig, type ModuleField } from '@/features/resources/config/modules';
+import { AlertTriangle, ArrowUpDown, LayoutGrid, Plus, Table2, X } from 'lucide-react';
+import { hasExplicitAccessProfile, normalizeRole, userHasModuleAction, type ModuleConfig, type ModuleField } from '@/features/resources/config/modules';
 import { useAuthStore } from '@/store/authStore';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { PageHeader, SearchFilterBar, DataTable, FormModal } from '@/shared/components/Common';
@@ -33,6 +33,7 @@ export const CrudPage = ({ config }: CrudPageProps) => {
   const [formError, setFormError] = useState('');
   const [feedbackMessage, setFeedbackMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [aiRecommendation, setAiRecommendation] = useState<any>(null);
+  const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
   const debouncedSearch = useDebounce(search, 300);
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -40,6 +41,14 @@ export const CrudPage = ({ config }: CrudPageProps) => {
   const user = useAuthStore((state) => state.user);
   const { isDark } = useTheme();
   const role = normalizeRole((user?.role as any) ?? null) ?? user?.role;
+  const strictPermissions = hasExplicitAccessProfile(user);
+  const entityCardClass = isDark
+    ? 'border-slate-800/80 bg-slate-950/90 text-slate-100 shadow-xl'
+    : 'border-slate-200 bg-white/95 text-slate-900 shadow-[0_16px_40px_rgba(15,23,42,0.08)]';
+  const entityPanelClass = isDark ? 'bg-slate-900/80 text-slate-100' : 'bg-slate-50 text-slate-900';
+  const entityMutedTextClass = isDark ? 'text-slate-400' : 'text-slate-600';
+  const entityBodyTextClass = isDark ? 'text-slate-300' : 'text-slate-700';
+  const entityTitleClass = isDark ? 'text-white' : 'text-slate-950';
 
   const translate = (text: string | undefined) => (text ? t(text, { defaultValue: text }) : '');
   const pageTitle = translate(config.title);
@@ -55,10 +64,15 @@ export const CrudPage = ({ config }: CrudPageProps) => {
     ].filter(Boolean));
   }, [config.fields, config.listFields, config.searchField]);
 
-  const canView = !!role && config.permissions.view.includes(role as any);
-  const canCreate = !!role && config.permissions.create?.includes(role as any) && role !== 'student';
-  const canEdit = !!role && config.permissions.edit?.includes(role as any) && role !== 'student';
-  const canDelete = !!role && config.permissions.delete?.includes(role as any) && role !== 'student';
+  const moduleKey = config.endpoint.replace(/^\//, '');
+  const roleCanView = !!role && config.permissions.view.includes(role as any);
+  const roleCanCreate = !!role && config.permissions.create?.includes(role as any);
+  const roleCanEdit = !!role && config.permissions.edit?.includes(role as any);
+  const roleCanDelete = !!role && config.permissions.delete?.includes(role as any);
+  const canView = strictPermissions ? userHasModuleAction(user, moduleKey, 'read') : roleCanView || userHasModuleAction(user, moduleKey, 'read');
+  const canCreate = (strictPermissions ? userHasModuleAction(user, moduleKey, 'create') : roleCanCreate || userHasModuleAction(user, moduleKey, 'create')) && role !== 'student';
+  const canEdit = (strictPermissions ? userHasModuleAction(user, moduleKey, 'update') : roleCanEdit || userHasModuleAction(user, moduleKey, 'update')) && role !== 'student';
+  const canDelete = (strictPermissions ? userHasModuleAction(user, moduleKey, 'delete') : roleCanDelete || userHasModuleAction(user, moduleKey, 'delete')) && role !== 'student';
 
   const queryKey = [config.path, debouncedSearch];
   const visibleFields = config.fields.filter((field) => !(editingItem && field.hiddenOnEdit));
@@ -408,6 +422,47 @@ export const CrudPage = ({ config }: CrudPageProps) => {
 
   const translateField = (text: string | undefined) => (text ? t(text, { defaultValue: text }) : '');
 
+  const getItemImage = (item: any) => {
+    const candidates = [
+      item?.profileImage,
+      item?.profilePhoto,
+      item?.avatar,
+      item?.photo,
+      item?.image,
+      item?.imageUrl,
+      item?.thumbnail,
+      item?.profileUrl
+    ];
+
+    return candidates.find((value) => typeof value === 'string' && value.trim()) ?? '';
+  };
+
+  const getInitials = (item: any) => {
+    const name = getItemDisplayName(item);
+    const initials = name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join('');
+
+    return initials || 'N';
+  };
+
+  const renderAvatar = (item: any, label?: string) => {
+    const image = getItemImage(item);
+
+    return (
+      <div className="mx-auto flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-gradient-to-br from-sky-500/20 via-cyan-400/10 to-emerald-400/20 text-xl font-semibold text-white shadow-[0_18px_45px_rgba(14,165,233,0.16)]">
+        {image ? (
+          <img src={image} alt={label ?? getItemDisplayName(item)} className="h-full w-full object-cover" loading="lazy" />
+        ) : (
+          <span>{getInitials(item)}</span>
+        )}
+      </div>
+    );
+  };
+
   const renderField = (field: ModuleField) => {
     const value = formData[field.name] ?? (field.multiple ? [] : '');
     if (field.type === 'textarea') {
@@ -510,6 +565,14 @@ export const CrudPage = ({ config }: CrudPageProps) => {
       const rawValue = item[field.key];
       const value = rawValue === null || rawValue === undefined || rawValue === '' ? notAvailable : rawValue;
 
+      if (field.key.toLowerCase().includes('url') && typeof rawValue === 'string' && rawValue.trim()) {
+        return (
+          <a href={rawValue} target="_blank" rel="noreferrer" className="font-semibold text-sky-300 underline-offset-4 hover:underline">
+            {t('common.open_link', { defaultValue: 'Open link' })}
+          </a>
+        );
+      }
+
       return Array.isArray(value) ? value.join(', ') : String(value);
     }
   }));
@@ -543,12 +606,13 @@ export const CrudPage = ({ config }: CrudPageProps) => {
   );
 
   const renderStudentCard = (student: any) => (
-    <Card key={student._id || student.id} className={`overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/90 p-5 shadow-xl ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
+    <Card key={student._id || student.id} className={`overflow-hidden rounded-3xl border p-5 ${entityCardClass} ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
       <div className="space-y-5">
         <div className="flex flex-col items-center text-center">
+          {renderAvatar(student, `${student.firstName ?? ''} ${student.lastName ?? ''}`)}
           <div>
-            <h3 className="text-lg font-semibold text-white">{student.firstName} {student.lastName}</h3>
-            <p className="text-sm text-slate-400">{t('students.roll_no')}: {student.rollNo || notAvailable}</p>
+            <h3 className={`text-lg font-semibold ${entityTitleClass}`}>{student.firstName} {student.lastName}</h3>
+            <p className={`text-sm ${entityMutedTextClass}`}>{t('students.roll_no')}: {student.rollNo || notAvailable}</p>
           </div>
         </div>
         <div className={`space-y-3 text-sm text-slate-400 ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
@@ -563,12 +627,13 @@ export const CrudPage = ({ config }: CrudPageProps) => {
   );
 
   const renderClassCard = (klass: any) => (
-    <Card key={klass._id || klass.id} className="overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/90 p-5 shadow-xl">
-      <div className="mb-4 rounded-3xl bg-slate-900/80 p-5 text-center text-slate-100">
-        <p className="text-sm uppercase tracking-[0.3em] text-slate-400">{t('common.class')}</p>
+    <Card key={klass._id || klass.id} className={`overflow-hidden rounded-3xl border p-5 ${entityCardClass}`}>
+      <div className={`mb-4 rounded-3xl p-5 text-center ${entityPanelClass}`}>
+        {renderAvatar(klass, klass.className || klass.name)}
+        <p className={`text-sm uppercase tracking-[0.3em] ${entityMutedTextClass}`}>{t('common.class')}</p>
         <p className="mt-3 text-2xl font-semibold">{klass.className || klass.name || notAvailable}</p>
       </div>
-      <div className="space-y-3 text-sm text-slate-300">
+      <div className={`space-y-3 text-sm ${entityBodyTextClass}`}>
         <p>{t('students.students_count')}: {klass.studentCount ?? 0}</p>
         <p>{t('students.subjects_count')}: {klass.assignedSubjectCount ?? 0}</p>
         <p>{t('students.teachers_count')}: {klass.assignedTeacherCount ?? 0}</p>
@@ -583,12 +648,13 @@ export const CrudPage = ({ config }: CrudPageProps) => {
   );
 
   const renderSubjectCard = (subject: any) => (
-    <Card key={subject._id || subject.id} className="overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/90 p-5 shadow-xl">
-      <div className="mb-4 rounded-3xl bg-slate-900/80 p-5 text-center text-slate-100">
-        <p className="text-sm uppercase tracking-[0.3em] text-slate-400">{t('common.subject')}</p>
+    <Card key={subject._id || subject.id} className={`overflow-hidden rounded-3xl border p-5 ${entityCardClass}`}>
+      <div className={`mb-4 rounded-3xl p-5 text-center ${entityPanelClass}`}>
+        {renderAvatar(subject, subject.title)}
+        <p className={`text-sm uppercase tracking-[0.3em] ${entityMutedTextClass}`}>{t('common.subject')}</p>
         <p className="mt-3 text-2xl font-semibold">{subject.title || notAvailable}</p>
       </div>
-      <div className="space-y-3 text-sm text-slate-300">
+      <div className={`space-y-3 text-sm ${entityBodyTextClass}`}>
         <p>{t('common.class')}: {subject.className || notAvailable}</p>
         <p>{t('subjects.teacher')}: {subject.teacherName || notAvailable}</p>
         <p>{t('subjects.code')}: {subject.code || notAvailable}</p>
@@ -600,15 +666,16 @@ export const CrudPage = ({ config }: CrudPageProps) => {
   const renderTeacherCard = (teacher: any) => {
     const subjectText = teacher.displaySubject || teacher.assignedSubjectNames || t('students.not_assigned');
     return (
-      <Card key={teacher._id || teacher.id} className={`overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/90 p-5 shadow-xl ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
+      <Card key={teacher._id || teacher.id} className={`overflow-hidden rounded-3xl border p-5 ${entityCardClass} ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
         <div className="space-y-5">
           <div className="flex flex-col items-center text-center">
+            {renderAvatar(teacher, teacher.name)}
             <div>
-              <h3 className="text-lg font-semibold text-white">{teacher.name || [teacher.firstName, teacher.lastName].filter(Boolean).join(' ') || notAvailable}</h3>
-              <p className="text-sm text-slate-400">{t('common.subject')}: {subjectText}</p>
+              <h3 className={`text-lg font-semibold ${entityTitleClass}`}>{teacher.name || [teacher.firstName, teacher.lastName].filter(Boolean).join(' ') || notAvailable}</h3>
+              <p className={`text-sm ${entityMutedTextClass}`}>{t('common.subject')}: {subjectText}</p>
             </div>
           </div>
-          <div className={`space-y-3 text-sm text-slate-400 ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
+          <div className={`space-y-3 text-sm ${entityMutedTextClass} ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
             <p>{t('students.phone')}: {teacher.phone || notAvailable}</p>
             <p>{t('students.email')}: {teacher.email || notAvailable}</p>
           </div>
@@ -619,15 +686,16 @@ export const CrudPage = ({ config }: CrudPageProps) => {
   };
 
   const renderUserCard = (account: any) => (
-    <Card key={account._id || account.id} className={`overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/90 p-5 shadow-xl ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
+    <Card key={account._id || account.id} className={`overflow-hidden rounded-3xl border p-5 ${entityCardClass} ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
       <div className="space-y-5">
         <div className="flex flex-col items-center text-center">
+          {renderAvatar(account, account.name)}
           <div>
-            <h3 className="text-lg font-semibold text-white">{account.name || notAvailable}</h3>
-            <p className="text-sm text-slate-400">{account.role ? t(`common.${account.role}`, { defaultValue: account.role }) : notAvailable}</p>
+            <h3 className={`text-lg font-semibold ${entityTitleClass}`}>{account.name || notAvailable}</h3>
+            <p className={`text-sm ${entityMutedTextClass}`}>{account.role ? t(`common.${account.role}`, { defaultValue: account.role }) : notAvailable}</p>
           </div>
         </div>
-        <div className={`space-y-3 text-sm text-slate-400 ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
+        <div className={`space-y-3 text-sm ${entityMutedTextClass} ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
           <p>{t('common.email')}: {account.email || notAvailable}</p>
           <p>{t('common.phone')}: {account.phone || notAvailable}</p>
           <p>{t('common.status')}: {account.active ? t('common.active') : 'Inactive'}</p>
@@ -638,15 +706,16 @@ export const CrudPage = ({ config }: CrudPageProps) => {
   );
 
   const renderNotificationCard = (notification: any) => (
-      <Card key={notification._id || notification.id} className="overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/90 shadow-xl">
+      <Card key={notification._id || notification.id} className={`overflow-hidden rounded-3xl border ${entityCardClass}`}>
         <div className="space-y-4 p-5">
+          {renderAvatar(notification, notification.title)}
           <p className="text-xs uppercase tracking-[0.25em] text-sky-300">
             {notification.publishDate ? new Date(notification.publishDate).toLocaleDateString() : notAvailable}
           </p>
-          <h3 className="text-2xl font-semibold text-white">{notification.title || notAvailable}</h3>
-          <p className="text-sm leading-7 text-slate-400">{notification.description || notification.message || notAvailable}</p>
+          <h3 className={`text-2xl font-semibold ${entityTitleClass}`}>{notification.title || notAvailable}</h3>
+          <p className={`text-sm leading-7 ${entityMutedTextClass}`}>{notification.description || notification.message || notAvailable}</p>
           {(notification.className || notification.subjectName || notification.teacherName) && (
-            <div className="space-y-2 text-sm text-slate-300">
+            <div className={`space-y-2 text-sm ${entityBodyTextClass}`}>
               <p>{t('students.class')}: {notification.className || notAvailable}</p>
               <p>{t('students.subject')}: {notification.subjectName || notAvailable}</p>
               <p>{t('students.teacher')}: {notification.teacherName || notAvailable}</p>
@@ -662,6 +731,31 @@ export const CrudPage = ({ config }: CrudPageProps) => {
       </Card>
   );
 
+  const renderGenericCard = (item: any) => (
+    <Card key={item._id || item.id || getItemDisplayName(item)} className={`overflow-hidden rounded-3xl border p-5 ${entityCardClass} ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
+      <div className="space-y-5">
+        <div className="text-center">
+          {renderAvatar(item)}
+          <h3 className={`mt-4 text-lg font-semibold ${entityTitleClass}`}>{getItemDisplayName(item)}</h3>
+          <p className={`text-sm ${entityMutedTextClass}`}>{entityText}</p>
+        </div>
+        <div className={`space-y-3 text-sm ${entityMutedTextClass} ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
+          {config.listFields.slice(0, 5).map((field) => {
+            const rawValue = item[field.key];
+            const value = rawValue === null || rawValue === undefined || rawValue === '' ? notAvailable : rawValue;
+            return (
+              <p key={field.key}>
+                <span className={entityBodyTextClass}>{translateField(field.label)}:</span>{' '}
+                {Array.isArray(value) ? value.join(', ') : String(value)}
+              </p>
+            );
+          })}
+        </div>
+        {renderCardActions(item)}
+      </div>
+    </Card>
+  );
+
   const renderEntityCards = () => {
     const renderers: Record<string, (item: any) => JSX.Element> = {
       '/students': renderStudentCard,
@@ -672,8 +766,7 @@ export const CrudPage = ({ config }: CrudPageProps) => {
       '/notifications': renderNotificationCard
     };
 
-    const renderCard = renderers[config.path];
-    if (!renderCard) return null;
+    const renderCard = renderers[config.path] ?? renderGenericCard;
 
     return (
         <div className="w-full overflow-x-hidden">
@@ -708,7 +801,32 @@ export const CrudPage = ({ config }: CrudPageProps) => {
       </Button>
     </>
   ) : null;
-  const cardLayoutPaths = new Set(['/students', '/classes', '/subjects', '/teachers', '/users', '/notifications']);
+  const viewControls = (
+    <div className="inline-flex rounded-2xl border border-white/10 bg-white/5 p-1">
+      <button
+        type="button"
+        onClick={() => setViewMode('card')}
+        className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition ${viewMode === 'card' ? 'bg-sky-500/20 text-sky-100' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}
+      >
+        <LayoutGrid className="h-4 w-4" />
+        Card
+      </button>
+      <button
+        type="button"
+        onClick={() => setViewMode('table')}
+        className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition ${viewMode === 'table' ? 'bg-sky-500/20 text-sky-100' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}
+      >
+        <Table2 className="h-4 w-4" />
+        Table
+      </button>
+    </div>
+  );
+  const listControls = (
+    <>
+      {sortControls}
+      {viewControls}
+    </>
+  );
 
   if (!canView) {
     return (
@@ -733,7 +851,7 @@ export const CrudPage = ({ config }: CrudPageProps) => {
             createLabel={t('common.add_entity', { entity: entityLabel })}
             onCreate={canCreate ? openCreateModal : undefined}
             createVisible={canCreate && config.fields.length > 0}
-            extraActions={sortControls}
+            extraActions={listControls}
           />
         )}
       />
@@ -768,7 +886,7 @@ export const CrudPage = ({ config }: CrudPageProps) => {
               ))}
             </div>
           ) : sortedList.length ? (
-            cardLayoutPaths.has(config.path) ? (
+            viewMode === 'card' ? (
               renderEntityCards()
             ) : (
               <DataTable columns={columns} items={sortedList} actions={rowActions} />

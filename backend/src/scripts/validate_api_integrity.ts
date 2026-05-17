@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import { createApp } from '../app';
 import { User } from '../models/User';
 import { config } from '../config/env';
+import { stopAutomationJobs } from '../jobs';
 
 type TestResult = {
   name: string;
@@ -93,6 +94,7 @@ async function main() {
     console.error('API validation failed:', error);
     process.exitCode = 1;
   } finally {
+    stopAutomationJobs();
     await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
     await mongoose.disconnect();
   }

@@ -36,7 +36,7 @@ interface ApiResponse<T> {
   data: T;
 }
 
-const roles = ['super_admin', 'admin', 'teacher', 'student', 'family_student', 'accountant', 'librarian'] as const;
+const roles = ['super_admin', 'admin', 'teacher', 'student', 'parent', 'owner', 'branch_manager', 'system_automation', 'family_student', 'accountant', 'librarian'] as const;
 
 const moduleLabelMap: Record<string, string> = {
   dashboard: 'common.dashboard',

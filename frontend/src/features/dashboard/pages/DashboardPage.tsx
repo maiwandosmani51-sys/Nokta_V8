@@ -1,15 +1,17 @@
 import { motion } from 'framer-motion';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Bell, BookOpen, DollarSign, GraduationCap, Receipt, School, Users } from 'lucide-react';
+import { Bell, BookOpen, CalendarDays, DollarSign, ExternalLink, GraduationCap, MessageCircle, Receipt, School, Send, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/Card';
 import { chartTheme } from '@/constants/chartTheme';
 import { dashboardService, type DashboardSummary } from '@/features/dashboard/services/dashboardService';
 import { useAuthStore } from '@/store/authStore';
 import DashboardAnalytics from '@/features/dashboard/components/DashboardAnalytics';
+import { api } from '@/services/apiClient';
+import { offlineStudentTeacher, offlineTimetable } from '@/services/offlineData';
 
 function formatChartMonth(month: number, language: string) {
   return new Date(2026, month - 1, 1).toLocaleString(language, { month: 'short' });
@@ -151,6 +153,129 @@ function AnalyticsSection({ chartData, summary }: { chartData: Array<{ name: str
   );
 }
 
+interface TeacherContact {
+  _id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  whatsapp?: string;
+  whatsappLink?: string;
+}
+
+interface TimetableItem {
+  _id: string;
+  className?: string;
+  subjectName?: string;
+  teacherName?: string;
+  dayOfWeek?: string;
+  startTime?: string;
+  endTime?: string;
+  room?: string;
+  deliveryMode?: string;
+  onlineLink?: string;
+}
+
+function StudentSupportSection() {
+  const { t } = useTranslation();
+  const [subject, setSubject] = useState('');
+  const [message, setMessage] = useState('');
+  const [status, setStatus] = useState('');
+
+  const { data: teacher } = useQuery<TeacherContact | null>({
+    queryKey: ['studentTeacherContact'],
+    queryFn: () => api.get('/student-messages/my-teacher').then((res) => res.data.data ?? offlineStudentTeacher).catch(() => offlineStudentTeacher)
+  });
+
+  const { data: timetable = offlineTimetable } = useQuery<TimetableItem[]>({
+    queryKey: ['studentDashboardTimetable'],
+    queryFn: () => api.get('/timetable', { params: { limit: 6 } }).then((res) => {
+      const data = res.data.data;
+      return Array.isArray(data) && data.length ? data : offlineTimetable;
+    }).catch(() => offlineTimetable)
+  });
+
+  const sendMessage = async () => {
+    if (!message.trim()) return;
+    try {
+      await api.post('/student-messages', { teacherId: teacher?._id, subject, message });
+      setStatus(t('common.message_sent'));
+      setSubject('');
+      setMessage('');
+    } catch {
+      const drafts = JSON.parse(localStorage.getItem('nokta-offline-student-message-drafts') || '[]');
+      localStorage.setItem('nokta-offline-student-message-drafts', JSON.stringify([...drafts, { subject, message, teacherId: teacher?._id, createdAt: new Date().toISOString() }]));
+      setStatus(t('common.message_saved_offline'));
+      setSubject('');
+      setMessage('');
+    }
+  };
+
+  return (
+    <section className="grid gap-6 xl:grid-cols-[1fr_1.15fr]">
+      <Card className="p-6">
+        <div className="mb-5 flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
+            <MessageCircle className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-sm uppercase tracking-[0.25em] text-slate-400">{t('common.student_messages')}</p>
+            <h2 className="text-xl font-semibold text-slate-100">{t('common.messages_to_teacher')}</h2>
+          </div>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <p className="font-semibold text-slate-100">{teacher?.name || t('common.teacher_contact')}</p>
+          <p className="mt-1 text-sm text-slate-400">{teacher?.email || teacher?.phone || t('common.offline_teacher_contact')}</p>
+          {teacher?.whatsappLink && (
+            <a href={teacher.whatsappLink} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-200">
+              <ExternalLink className="h-4 w-4" />
+              {t('common.open_whatsapp')}
+            </a>
+          )}
+        </div>
+        <div className="mt-4 grid gap-3">
+          <input value={subject} onChange={(event) => setSubject(event.target.value)} placeholder={t('common.message_subject')} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-primary" />
+          <textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder={t('common.message_body')} rows={4} className="resize-none rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-primary" />
+          <button type="button" onClick={sendMessage} className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-primary/90">
+            <Send className="h-4 w-4" />
+            {t('common.send_message')}
+          </button>
+          {status && <p className="text-sm text-emerald-300">{status}</p>}
+        </div>
+      </Card>
+
+      <Card className="p-6">
+        <div className="mb-5 flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-accent/15 text-accent">
+            <CalendarDays className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-sm uppercase tracking-[0.25em] text-slate-400">{t('common.class_timetable')}</p>
+            <h2 className="text-xl font-semibold text-slate-100">{t('common.class_timetable_description')}</h2>
+          </div>
+        </div>
+        <div className="grid gap-3">
+          {timetable.map((item) => (
+            <div key={item._id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-semibold text-slate-100">{item.subjectName || item.className || t('common.subject')}</p>
+                  <p className="mt-1 text-sm text-slate-400">{t(`common.${item.dayOfWeek || 'saturday'}`)} | {item.startTime} - {item.endTime} | {item.room || t('common.room')}</p>
+                </div>
+                {item.onlineLink && (
+                  <a href={item.onlineLink} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-semibold text-primary">
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    {t('common.online_link')}
+                  </a>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </section>
+  );
+}
+
 export function DashboardPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -243,6 +368,7 @@ export function DashboardPage() {
         </div>
       ) : (
         <>
+          {user?.role === 'student' && <StudentSupportSection />}
           <SummaryCards summary={safeSummary} role={user?.role} />
           {user?.role === 'owner' || user?.role === 'branch_manager' ? (
             <DashboardAnalytics summary={safeSummary} />

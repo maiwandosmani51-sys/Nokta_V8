@@ -31,6 +31,7 @@ const userSchema = createBaseSchema(
     username: { type: String, trim: true, lowercase: true, unique: true, sparse: true, index: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     phone: { type: String, trim: true, default: '' },
+    profileImage: { type: String, trim: true, default: '' },
     password: { type: String, required: true, select: false },
     role: { type: String, required: true, enum: supportedRoles, index: true },
     status: { type: String, enum: ['active', 'inactive', 'locked', 'suspended', 'pending_verification'], default: 'active', index: true },

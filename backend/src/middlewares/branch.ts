@@ -18,8 +18,14 @@ export function branchMiddleware(req: Request, res: Response, next: NextFunction
     return next();
   }
 
-  const requestBranchId = (req.body?.branchId || req.query?.branchId || req.user.branchId || null)?.toString?.() ?? null;
-  if (!req.user.branchId || (requestBranchId && req.user.branchId !== requestBranchId)) {
+  const userBranchId = req.user.branchId?.toString?.() ?? null;
+  const requestBranchId = (req.body?.branchId || req.query?.branchId || null)?.toString?.() ?? null;
+
+  if (!userBranchId && !requestBranchId) {
+    return next();
+  }
+
+  if (!userBranchId || (requestBranchId && userBranchId !== requestBranchId)) {
     return res.status(403).json(createError('Branch access denied'));
   }
 

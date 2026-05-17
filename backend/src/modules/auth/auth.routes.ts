@@ -147,7 +147,7 @@ router.get('/register/options', async (req, res) => {
       }
 
       teacherMap.set(teacherKey, {
-        _id: teacher._id,
+        _id: String(teacher._id),
         name: teacher.name,
         email: teacher.email,
         subjectIds: [String(subject._id)],
@@ -173,18 +173,18 @@ router.get('/register/options', async (req, res) => {
 
     return res.json(createResponse({
       classes: classes.map((klass: any) => ({
-        _id: klass._id,
+        _id: String(klass._id),
         className: klass.className ?? klass.name,
         classCode: klass.classCode,
         branchId: klass.branchId ?? null,
         feeAmount: Number(klass.feeAmount ?? 0)
       })),
       subjects: subjects.map((subject: any) => ({
-        _id: subject._id,
+        _id: String(subject._id),
         title: subject.title,
-        classId: subject.classId,
+        classId: String(subject.classId ?? ''),
         code: subject.code,
-        teacherId: subject.teacher?._id ?? null,
+        teacherId: subject.teacher?._id ? String(subject.teacher._id) : null,
         feeAmount: Number(subject.feeAmount ?? 0)
       })),
       teachers

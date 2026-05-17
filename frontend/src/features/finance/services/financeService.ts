@@ -29,6 +29,6 @@ export interface FinanceRecord {
 }
 
 export const financeService = {
-  summary: (params?: { startDate?: string; endDate?: string }) => api.get('/finance/summary', { params }).then((res) => res.data.data as FinanceSummary),
+  summary: (params?: { startDate?: string; endDate?: string; branchId?: string }) => api.get('/finance/summary', { params }).then((res) => res.data.data as FinanceSummary),
   list: () => api.get('/finance', { params: { limit: 100 } }).then((res) => res.data.data as FinanceRecord[])
 };

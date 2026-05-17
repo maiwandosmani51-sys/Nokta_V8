@@ -1,10 +1,12 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Activity,
+  Award,
   Bell,
   BookOpen,
   BrainCircuit,
   Building2,
+  CalendarDays,
   CalendarCheck,
   ClipboardList,
   CreditCard,
@@ -153,6 +155,7 @@ export const modulesConfig: Record<string, ModuleConfig> = {
       { name: 'name', label: 'common.full_name', type: 'text', required: true },
       { name: 'email', label: 'common.email_address', type: 'email', required: true },
       { name: 'password', label: 'common.password', type: 'password', required: true, hiddenOnEdit: true },
+      { name: 'profileImage', label: 'common.profile_image', type: 'text' },
       { name: 'role', label: 'common.role', type: 'select', required: true, options: roleOptions }
     ],
     listFields: [
@@ -177,6 +180,9 @@ export const modulesConfig: Record<string, ModuleConfig> = {
       { name: 'firstName', label: 'students.first_name', type: 'text', required: true },
       { name: 'lastName', label: 'students.last_name', type: 'text', required: true },
       { name: 'fatherName', label: 'students.father_name', type: 'text', required: true },
+      { name: 'loginEmail', label: 'common.login_email', type: 'email' },
+      { name: 'loginPassword', label: 'common.login_password', type: 'password', hiddenOnEdit: true },
+      { name: 'profileImage', label: 'common.profile_image', type: 'text' },
       { name: 'familyPhone', label: 'students.guardian_phone', type: 'text', required: true },
       { name: 'gender', label: 'students.gender', type: 'select', required: true, options: [
         { value: 'male', label: 'students.gender_male' },
@@ -220,6 +226,7 @@ export const modulesConfig: Record<string, ModuleConfig> = {
       { name: 'name', label: 'common.full_name', type: 'text', required: true },
       { name: 'email', label: 'common.email', type: 'email', required: true },
       { name: 'password', label: 'common.password', type: 'password', required: true, hiddenOnEdit: true },
+      { name: 'profileImage', label: 'common.profile_image', type: 'text' },
       { name: 'phone', label: 'students.phone', type: 'text', required: true },
       { name: 'whatsapp', label: 'common.whatsapp', type: 'text' },
       { name: 'address', label: 'common.address', type: 'textarea' },
@@ -285,6 +292,53 @@ export const modulesConfig: Record<string, ModuleConfig> = {
       create: ['super_admin', 'admin', 'branch_manager'],
       edit: ['super_admin', 'admin', 'branch_manager'],
       delete: ['super_admin']
+    }
+  },
+  timetable: {
+    path: '/timetable',
+    title: 'common.timetable',
+    entity: 'common.timetable_item',
+    endpoint: '/timetable',
+    description: 'common.timetable_description',
+    fields: [
+      { name: 'classId', label: 'students.class', type: 'select', required: true, optionsEndpoint: '/classes', optionLabelKey: 'className', optionValueKey: '_id' },
+      { name: 'subjectId', label: 'common.subject', type: 'select', optionsEndpoint: '/subjects', optionLabelKey: 'title', optionValueKey: '_id' },
+      { name: 'teacherId', label: 'common.teacher', type: 'select', required: true, optionsEndpoint: '/teachers', optionLabelKey: 'name', optionValueKey: '_id' },
+      { name: 'dayOfWeek', label: 'common.day_of_week', type: 'select', required: true, options: [
+        { value: 'saturday', label: 'common.saturday' },
+        { value: 'sunday', label: 'common.sunday' },
+        { value: 'monday', label: 'common.monday' },
+        { value: 'tuesday', label: 'common.tuesday' },
+        { value: 'wednesday', label: 'common.wednesday' },
+        { value: 'thursday', label: 'common.thursday' },
+        { value: 'friday', label: 'common.friday' }
+      ] },
+      { name: 'startTime', label: 'common.start_time', type: 'text', required: true },
+      { name: 'endTime', label: 'common.end_time', type: 'text', required: true },
+      { name: 'room', label: 'common.room', type: 'text' },
+      { name: 'deliveryMode', label: 'common.delivery_mode', type: 'select', options: [
+        { value: 'in_person', label: 'common.in_person' },
+        { value: 'online', label: 'common.online' },
+        { value: 'hybrid', label: 'common.hybrid' }
+      ] },
+      { name: 'onlineLink', label: 'common.online_link', type: 'text' },
+      { name: 'notes', label: 'common.notes', type: 'textarea' }
+    ],
+    listFields: [
+      { key: 'className', label: 'classes.class_name' },
+      { key: 'subjectName', label: 'subjects.title' },
+      { key: 'teacherName', label: 'subjects.teacher' },
+      { key: 'dayOfWeek', label: 'common.day_of_week' },
+      { key: 'startTime', label: 'common.start_time' },
+      { key: 'endTime', label: 'common.end_time' },
+      { key: 'room', label: 'common.room' }
+    ],
+    searchField: 'room',
+    permissions: {
+      view: ['super_admin', 'admin', 'branch_manager', 'teacher', 'student', 'parent', 'owner'],
+      create: ['super_admin', 'admin', 'branch_manager', 'teacher'],
+      edit: ['super_admin', 'admin', 'branch_manager', 'teacher'],
+      delete: ['super_admin', 'admin', 'branch_manager']
     }
   },
   subjects: {
@@ -426,14 +480,17 @@ export const modulesConfig: Record<string, ModuleConfig> = {
       { name: 'class', label: 'exams.class', type: 'select', required: true, optionsEndpoint: '/classes', optionLabelKey: 'className', optionValueKey: '_id' },
       { name: 'teacherId', label: 'students.teacher', type: 'select', optionsEndpoint: '/teachers', optionLabelKey: 'name', optionValueKey: '_id' },
       { name: 'date', label: 'exams.date', type: 'date', required: true },
-      { name: 'totalMarks', label: 'exams.total_marks', type: 'number' }
+      { name: 'totalMarks', label: 'exams.total_marks', type: 'number' },
+      { name: 'onlineExamUrl', label: 'common.online_exam_url', type: 'text' },
+      { name: 'googleFormUrl', label: 'common.google_form_url', type: 'text' }
     ],
     listFields: [
       { key: 'title', label: 'exams.title' },
       { key: 'subjectName', label: 'exams.subject' },
       { key: 'className', label: 'exams.class' },
       { key: 'teacherName', label: 'students.teacher' },
-      { key: 'date', label: 'exams.date' }
+      { key: 'date', label: 'exams.date' },
+      { key: 'onlineExamUrl', label: 'common.online_exam_url' }
     ],
     permissions: {
       view: ['super_admin', 'admin', 'branch_manager', 'teacher', 'student', 'parent', 'owner'],
@@ -750,14 +807,135 @@ export interface MenuItem {
   roles: EnterpriseRole[];
 }
 
+export interface AccessProfile {
+  role?: Role | null;
+  permissions?: Record<string, string[]>;
+  permissionKeys?: string[];
+  revokedPermissionKeys?: string[];
+}
+
+const modulePermissionPrefixMap: Record<string, string> = {
+  dashboard: 'DASHBOARD',
+  'academic-standards': 'REPORT',
+  users: 'USER',
+  students: 'STUDENT',
+  teachers: 'TEACHER',
+  classes: 'CLASS',
+  timetable: 'CLASS',
+  subjects: 'SUBJECT',
+  courses: 'COURSE',
+  curriculum: 'CURRICULUM',
+  attendance: 'ATTENDANCE',
+  exams: 'EXAM',
+  results: 'RESULT',
+  payments: 'PAYMENT',
+  finance: 'PAYMENT',
+  expenses: 'EXPENSE',
+  families: 'FAMILY_LINK',
+  books: 'RESOURCE',
+  notifications: 'NOTIFICATION',
+  reports: 'REPORT',
+  audit: 'AUDIT',
+  roles: 'ROLE',
+  permissions: 'PERMISSION',
+  branches: 'BRANCH',
+  'ai-assistant': 'AI_ASSISTANT'
+};
+
+const enterpriseActionMap: Record<string, string> = {
+  read: 'VIEW',
+  create: 'CREATE',
+  update: 'UPDATE',
+  delete: 'DELETE'
+};
+
+const legacyModuleAliases: Record<string, string[]> = {
+  users: ['users', 'user'],
+  students: ['students', 'student'],
+  teachers: ['teachers', 'teacher'],
+  classes: ['classes', 'class'],
+  timetable: ['timetable', 'schedule', 'class_schedule', 'classes', 'class'],
+  subjects: ['subjects', 'subject'],
+  courses: ['courses', 'course'],
+  exams: ['exams', 'exam'],
+  results: ['results', 'result'],
+  payments: ['payments', 'payment', 'finance'],
+  finance: ['finance', 'payment', 'payments'],
+  expenses: ['expenses', 'expense'],
+  families: ['families', 'family', 'family_link'],
+  books: ['books', 'resource', 'resources'],
+  notifications: ['notifications', 'notification'],
+  reports: ['reports', 'report'],
+  roles: ['roles', 'role'],
+  permissions: ['permissions', 'permission'],
+  branches: ['branches', 'branch'],
+  'academic-standards': ['academic_standards', 'reports', 'report'],
+  'ai-assistant': ['ai_assistant', 'ai-assistant']
+};
+
+const pathModuleMap: Record<string, string> = Object.fromEntries(
+  Object.values(modulesConfig).map((config) => [config.path, config.endpoint.replace(/^\//, '')])
+);
+
+pathModuleMap['/dashboard'] = 'dashboard';
+pathModuleMap['/dashboard/manage-users'] = 'users';
+pathModuleMap['/dashboard/super-admin'] = 'dashboard';
+pathModuleMap['/dashboard/super-admin/master'] = 'dashboard';
+pathModuleMap['/users'] = 'users';
+pathModuleMap['/academic-standards'] = 'academic-standards';
+pathModuleMap['/ai-assistant'] = 'ai-assistant';
+
+function getModuleFromPath(pathname: string) {
+  return pathModuleMap[pathname] ?? pathname.replace(/^\//, '').split('/')[0];
+}
+
+function hasEnterprisePermission(user: AccessProfile | null | undefined, moduleKey: string, action: string) {
+  const prefix = modulePermissionPrefixMap[moduleKey];
+  const suffix = enterpriseActionMap[action];
+  if (!prefix || !suffix) return false;
+
+  const key = `${prefix}_${suffix}`;
+  const granted = new Set(user?.permissionKeys ?? []);
+  const revoked = new Set(user?.revokedPermissionKeys ?? []);
+  return granted.has(key) && !revoked.has(key);
+}
+
+export function hasExplicitAccessProfile(user: AccessProfile | null | undefined) {
+  return Boolean(
+    (user?.permissionKeys?.length ?? 0) > 0 ||
+    (user?.revokedPermissionKeys?.length ?? 0) > 0 ||
+    Object.keys(user?.permissions ?? {}).length > 0
+  );
+}
+
+export function userHasModuleAction(user: AccessProfile | null | undefined, moduleKey: string, action: string) {
+  if (!user) return false;
+
+  const normalizedRole = normalizeRole(user.role);
+  if (normalizedRole === 'super_admin' && !hasExplicitAccessProfile(user)) return true;
+
+  const moduleAliases = legacyModuleAliases[moduleKey] ?? [moduleKey];
+  const legacyActions = moduleAliases.flatMap((key) => user.permissions?.[key] ?? []);
+  const legacyActionAliases = action === 'read' ? ['read', 'view'] : [action];
+  return legacyActionAliases.some((legacyAction) => legacyActions.includes(legacyAction)) || hasEnterprisePermission(user, moduleKey, action);
+}
+
+export function userCanOpenPath(user: AccessProfile | null | undefined, pathname: string) {
+  if (!user) return false;
+  const moduleKey = getModuleFromPath(pathname);
+  return userHasModuleAction(user, moduleKey, 'read');
+}
+
 const menuConfig: Record<EnterpriseRole, MenuItem[]> = {
   super_admin: [
     { path: '/dashboard', label: 'common.dashboard', icon: Home, roles: coreRoles },
+    { path: '/academic-standards', label: 'common.academic_standards', icon: Award, roles: ['super_admin', 'admin', 'branch_manager', 'owner'] },
     { path: '/branches', label: 'common.branches', icon: Building2, roles: coreRoles },
     { path: '/users', label: 'common.users', icon: Users, roles: coreRoles },
     { path: '/students', label: 'common.students', icon: GraduationCap, roles: coreRoles },
     { path: '/teachers', label: 'common.teachers', icon: UserCheck, roles: coreRoles },
     { path: '/classes', label: 'common.classes', icon: Layers, roles: coreRoles },
+    { path: '/timetable', label: 'common.timetable', icon: CalendarDays, roles: coreRoles },
     { path: '/courses', label: 'common.courses', icon: BookOpen, roles: coreRoles },
     { path: '/subjects', label: 'common.subjects', icon: BookOpen, roles: coreRoles },
     { path: '/attendance', label: 'common.attendance', icon: ClipboardList, roles: coreRoles },
@@ -775,10 +953,12 @@ const menuConfig: Record<EnterpriseRole, MenuItem[]> = {
   ],
   admin: [
     { path: '/dashboard', label: 'common.dashboard', icon: Home, roles: coreRoles },
+    { path: '/academic-standards', label: 'common.academic_standards', icon: Award, roles: ['super_admin', 'admin', 'branch_manager', 'owner'] },
     { path: '/branches', label: 'common.branches', icon: Building2, roles: coreRoles },
     { path: '/students', label: 'common.students', icon: GraduationCap, roles: coreRoles },
     { path: '/teachers', label: 'common.teachers', icon: UserCheck, roles: coreRoles },
     { path: '/classes', label: 'common.classes', icon: Layers, roles: coreRoles },
+    { path: '/timetable', label: 'common.timetable', icon: CalendarDays, roles: coreRoles },
     { path: '/courses', label: 'common.courses', icon: BookOpen, roles: coreRoles },
     { path: '/subjects', label: 'common.subjects', icon: BookOpen, roles: coreRoles },
     { path: '/attendance', label: 'common.attendance', icon: ClipboardList, roles: coreRoles },
@@ -796,6 +976,7 @@ const menuConfig: Record<EnterpriseRole, MenuItem[]> = {
     { path: '/dashboard', label: 'common.dashboard', icon: Home, roles: coreRoles },
     { path: '/students', label: 'common.students', icon: GraduationCap, roles: coreRoles },
     { path: '/classes', label: 'common.classes', icon: Layers, roles: coreRoles },
+    { path: '/timetable', label: 'common.timetable', icon: CalendarDays, roles: coreRoles },
     { path: '/courses', label: 'common.courses', icon: BookOpen, roles: coreRoles },
     { path: '/subjects', label: 'common.subjects', icon: BookOpen, roles: coreRoles },
     { path: '/attendance', label: 'common.attendance', icon: ClipboardList, roles: coreRoles },
@@ -808,6 +989,7 @@ const menuConfig: Record<EnterpriseRole, MenuItem[]> = {
   student: [
     { path: '/dashboard', label: 'common.dashboard', icon: Home, roles: coreRoles },
     { path: '/classes', label: 'common.classes', icon: Layers, roles: coreRoles },
+    { path: '/timetable', label: 'common.timetable', icon: CalendarDays, roles: coreRoles },
     { path: '/courses', label: 'common.courses', icon: BookOpen, roles: coreRoles },
     { path: '/subjects', label: 'common.subjects', icon: BookOpen, roles: coreRoles },
     { path: '/attendance', label: 'common.attendance', icon: ClipboardList, roles: coreRoles },
@@ -820,6 +1002,7 @@ const menuConfig: Record<EnterpriseRole, MenuItem[]> = {
     { path: '/dashboard', label: 'common.dashboard', icon: Home, roles: coreRoles },
     { path: '/families', label: 'common.families', icon: Users, roles: coreRoles },
     { path: '/classes', label: 'common.classes', icon: Layers, roles: coreRoles },
+    { path: '/timetable', label: 'common.timetable', icon: CalendarDays, roles: coreRoles },
     { path: '/courses', label: 'common.courses', icon: BookOpen, roles: coreRoles },
     { path: '/attendance', label: 'common.attendance', icon: ClipboardList, roles: coreRoles },
     { path: '/results', label: 'common.results', icon: FileText, roles: coreRoles },
@@ -829,6 +1012,7 @@ const menuConfig: Record<EnterpriseRole, MenuItem[]> = {
   ],
   owner: [
     { path: '/dashboard', label: 'common.dashboard', icon: Home, roles: coreRoles },
+    { path: '/academic-standards', label: 'common.academic_standards', icon: Award, roles: ['super_admin', 'admin', 'branch_manager', 'owner'] },
     { path: '/branches', label: 'common.branches', icon: Building2, roles: coreRoles },
     { path: '/finance', label: 'common.finance', icon: DollarSign, roles: coreRoles },
     { path: '/expenses', label: 'common.expenses', icon: CreditCard, roles: coreRoles },
@@ -842,10 +1026,12 @@ const menuConfig: Record<EnterpriseRole, MenuItem[]> = {
   ],
   branch_manager: [
     { path: '/dashboard', label: 'common.dashboard', icon: Home, roles: coreRoles },
+    { path: '/academic-standards', label: 'common.academic_standards', icon: Award, roles: ['super_admin', 'admin', 'branch_manager', 'owner'] },
     { path: '/branches', label: 'common.branches', icon: Building2, roles: coreRoles },
     { path: '/students', label: 'common.students', icon: GraduationCap, roles: coreRoles },
     { path: '/teachers', label: 'common.teachers', icon: UserCheck, roles: coreRoles },
     { path: '/classes', label: 'common.classes', icon: Layers, roles: coreRoles },
+    { path: '/timetable', label: 'common.timetable', icon: CalendarDays, roles: coreRoles },
     { path: '/courses', label: 'common.courses', icon: BookOpen, roles: coreRoles },
     { path: '/subjects', label: 'common.subjects', icon: BookOpen, roles: coreRoles },
     { path: '/attendance', label: 'common.attendance', icon: ClipboardList, roles: coreRoles },
@@ -869,6 +1055,25 @@ export function getMenuForRole(role: Role | null) {
   const normalizedRole = normalizeRole(role);
   if (!normalizedRole) return [];
   return menuConfig[normalizedRole] ?? [];
+}
+
+export function getMenuForUser(user: AccessProfile | null | undefined) {
+  const normalizedRole = normalizeRole(user?.role);
+  const roleMenu = normalizedRole ? menuConfig[normalizedRole] ?? [] : [];
+  const allItems = Object.values(menuConfig).flat();
+  const uniqueItems = new Map<string, MenuItem>();
+  const strictPermissions = hasExplicitAccessProfile(user);
+
+  for (const item of [...roleMenu, ...allItems]) {
+    if (uniqueItems.has(item.path)) continue;
+    const roleAllowed = Boolean(normalizedRole && item.roles.includes(normalizedRole));
+    const permissionAllowed = userCanOpenPath(user, item.path);
+    if ((strictPermissions && permissionAllowed) || (!strictPermissions && (roleAllowed || permissionAllowed))) {
+      uniqueItems.set(item.path, item);
+    }
+  }
+
+  return Array.from(uniqueItems.values());
 }
 
 export function getRouteLabel(role: Role | null, pathname: string) {
