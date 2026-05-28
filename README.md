@@ -58,6 +58,9 @@ npm.cmd run build
 
 cd ..\frontend
 npm.cmd run build
+
+cd ..\Nokta_App\frontend_mobile
+npm.cmd run build
 ```
 
 To preview the built frontend:
@@ -74,7 +77,48 @@ npm.cmd run preview
 - Home page hero images and app icons are served from `frontend/public`, not from a CDN.
 - The web app stores successful GET API responses in a small local offline cache and reuses them when the API is unavailable.
 - The home and registration pages include bundled fallback academic data so they still render before the backend is available.
+- Offline status is shown as a small dismissible bottom status pill. It must not cover the fixed header, sidebar, dropdowns, mobile menu, or navigation.
 - MongoDB must be available locally for the backend API to start.
+- First-time login still requires the backend and database. A previously authenticated session can continue to render cached read-only pages while the network is unavailable, subject to token/session validity.
+
+## Localization, Theme, and Currency
+
+- The frontend supports English LTR, Dari RTL, and Pashto RTL through i18next message files.
+- Financial values are formatted centrally with Afghanistan locales and AFN currency through `frontend/src/utils/formatters.ts`.
+- Payment, finance, salary, expense, registration fee, dashboard, analytics, and report values should display AFN/Afghani formatting instead of USD or `$`.
+- Light and dark themes are synchronized through the global theme provider and CSS variables. Shared glass cards/panels include light-theme readability rules so white text does not disappear on light backgrounds.
+
+## Books and Resources
+
+- `/books` is available as a protected module route.
+- Backend endpoints include inventory CRUD, stock quantity, price, branch scoping, sales records, receipt payloads, payment status, student linkage, filters, pagination, and audit entries.
+- Students and parents can read resource inventory where permitted; creating/updating/deleting inventory and book sales is restricted to operational roles.
+
+## Production Readiness
+
+See [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) and [SECURITY.md](SECURITY.md) for the full checklist, CI pipeline, API docs (`/api-docs`, `/openapi.json`), health endpoints (`/health`, `/health/ready`), and backup script (`node scripts/backup-mongodb.mjs`).
+
+## Test and Smoke Commands
+
+```bash
+cd backend
+npm.cmd run test
+npm.cmd run build
+npm.cmd run validate-api
+
+cd ..\frontend
+npm.cmd run test
+npm.cmd run build
+npm.cmd run validate-permissions
+npm.cmd run test:e2e
+npm.cmd run preview
+
+cd ..\Nokta_App\frontend_mobile
+npm.cmd run build
+```
+
+The backend `validate-api` script checks protected academic endpoints, `/api/books`, and RBAC denial for student access to user management and book creation.
+The frontend `validate-permissions` script checks role-based route/menu visibility against the backend role matrix, including finance, audit, roles, users, and other sensitive modules.
 
 ## Main Local URLs
 
@@ -98,4 +142,6 @@ See `account/accounts.md` for local sample credentials. Common seeded accounts i
 - If the backend does not start, confirm MongoDB is running and `MONGO_URI` in `backend/.env` is correct.
 - If login fails after reseeding, clear browser local storage and try the seeded credentials again.
 - If the frontend cannot reach the API, confirm the backend is on port `8081` or set `VITE_API_URL`.
+- If the offline status appears, menus should remain clickable. If a browser keeps an old service worker, unregister it once in DevTools and reload.
 # Nokta_V8
+# Nokta_Active_project
